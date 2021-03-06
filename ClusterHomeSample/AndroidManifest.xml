@@ -34,7 +34,8 @@
                 android:excludeFromRecents="true"
                 android:screenOrientation="nosensor"
                 android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
-        <intent-filter>
+            <meta-data android:name="distractionOptimized" android:value="true"/>
+            <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
