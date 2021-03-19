@@ -298,8 +298,19 @@ public class MainClusterActivity extends FragmentActivity implements
 
     private <V> void registerSensor(TextView textView, LiveData<V> source) {
         String emptyValue = getString(R.string.info_value_empty);
-        source.observe(this, value -> textView.setText(value != null
-                ? value.toString() : emptyValue));
+        source.observe(this, value -> {
+            // Need to check that the text is actually different, or else
+            // it will generate a bunch of CONTENT_CHANGE_TYPE_TEXT accessability
+            // actions. This will cause cts tests to fail when they waitForIdle(),
+            // and the system never idles because it's constantly updating these
+            // TextViews
+            if (value != null && !value.toString().contentEquals(textView.getText())) {
+                textView.setText(value.toString());
+            }
+            if (value == null && !emptyValue.contentEquals(textView.getText())) {
+                textView.setText(emptyValue);
+            }
+        });
     }
 
     @Override
