@@ -48,7 +48,6 @@
     <uses-permission android:name="android.car.permission.CAR_ENERGY"/>
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN"/>
     <uses-permission android:name="android.car.permission.CAR_INFO"/>
-    <uses-permission android:name="android.car.permission.CAR_SPEED"/>
     <uses-permission android:name="android.car.permission.CAR_ENGINE_DETAILED"/>
 
     <!-- Required to query packages in Android 11+ -->
