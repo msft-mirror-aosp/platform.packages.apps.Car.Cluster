@@ -24,16 +24,19 @@ import android.os.RemoteException;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 /**
- * Skeleton Activity for Home UI in Cluster display.
+ * Skeleton Activity for Music UI in Cluster display.
  */
-public class ClusterHomeActivity extends Activity {
+public final class ClusterMusicActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        View view = getLayoutInflater().inflate(R.layout.cluster_home_activity, /* root= */ null);
+        TextView view = (TextView) getLayoutInflater().inflate(
+                R.layout.cluster_home_activity, /* root= */ null);
+        view.setText(R.string.cluster_music_text);
         setContentView(view);
-  }
+    }
 }

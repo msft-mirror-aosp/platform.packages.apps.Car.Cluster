@@ -15,5 +15,13 @@
 -->
 
 <resources>
-    <string name="cluster_home_text">Hello, ClusterHome!</string>
+    <string name="cluster_home_text" translatable="false">
+        Welcome, ClusterHome.
+    </string>
+    <string name="cluster_phone_text" translatable="false">
+        Hello, ClusterPhone?
+    </string>
+    <string name="cluster_music_text" translatable="false">
+        Enjoy, ClusterMusic!
+    </string>
 </resources>
