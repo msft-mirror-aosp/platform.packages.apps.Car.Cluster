@@ -17,22 +17,56 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.android.car.cluster.home">
 
+    <!-- for ActivityManager.getCurrentUser() -->
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"/>
+    <!-- for IActivityManager.registerTaskStackListener() -->
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_TASKS"/>
     <!-- for ClusterHomeManager -->
     <uses-permission android:name="android.car.permission.CAR_INSTRUMENT_CLUSTER_CONTROL"/>
+    <!-- for CarOccupantZoneManager.getDisplayIdForDriver() -->
+    <uses-permission android:name="android.car.permission.ACCESS_PRIVATE_DISPLAY_ID"/>
+    <!-- for CarInputManager.requestInputEventCapture() -->
+    <uses-permission android:name="android.car.permission.CAR_MONITOR_INPUT"/>
 
     <!--
         android:directBootAware to start the application regardless of user-unlocking.
-        android:persistent not to be killed by OOM.
     -->
-    <application android:label="ClusterHomeSample"
-                 android:directBootAware="true"
-                 android:persistent="true">
+    <application android:name=".ClusterHomeApplication"
+            android:label="ClusterHomeSample"
+            android:directBootAware="true">
         <!-- android:showForAllUsers to keep the Activity regardless of user-switching -->
-        <activity android:name="ClusterHomeActivity"
+        <activity android:name=".ClusterHomeActivity"
                 android:exported="true"
                 android:showForAllUsers="true"
                 android:excludeFromRecents="true"
                 android:screenOrientation="nosensor"
+                android:launchMode="singleTask"
+                android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+            <meta-data android:name="distractionOptimized" android:value="true"/>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".ClusterPhoneActivity"
+                android:exported="true"
+                android:showForAllUsers="true"
+                android:excludeFromRecents="true"
+                android:screenOrientation="nosensor"
+                android:launchMode="singleTask"
+                android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+            <meta-data android:name="distractionOptimized" android:value="true"/>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".ClusterMusicActivity"
+                android:exported="true"
+                android:showForAllUsers="true"
+                android:excludeFromRecents="true"
+                android:screenOrientation="nosensor"
+                android:launchMode="singleTask"
                 android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
             <meta-data android:name="distractionOptimized" android:value="true"/>
             <intent-filter>
