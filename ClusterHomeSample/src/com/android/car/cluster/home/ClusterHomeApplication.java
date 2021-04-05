@@ -126,7 +126,7 @@ public final class ClusterHomeApplication extends Application {
                 CarInputManager.CAPTURE_REQ_FLAGS_TAKE_ALL_EVENTS_FOR_DISPLAY,
                 mInputCaptureCallback);
         if (r != CarInputManager.INPUT_CAPTURE_RESPONSE_SUCCEEDED) {
-            Slog.e(TAG, "Failed to capture InputEvent on Cluster: r=%d", r);
+            Slog.e(TAG, "Failed to capture InputEvent on Cluster: r=" + r);
         }
 
         if (mClusterState.uiType != UI_TYPE_HOME) {
