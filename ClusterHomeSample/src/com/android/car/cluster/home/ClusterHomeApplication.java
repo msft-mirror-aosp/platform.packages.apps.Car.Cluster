@@ -16,6 +16,8 @@
 
 package com.android.car.cluster.home;
 
+import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.car.CarOccupantZoneManager.DISPLAY_TYPE_INSTRUMENT_CLUSTER;
 import static android.car.cluster.ClusterHomeManager.ClusterHomeCallback;
 import static android.car.cluster.ClusterHomeManager.UI_TYPE_CLUSTER_HOME;
@@ -27,8 +29,11 @@ import static android.hardware.input.InputManager.INJECT_INPUT_EVENT_MODE_ASYNC;
 
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
+import android.app.ActivityTaskManager;
 import android.app.Application;
 import android.app.IActivityManager;
+import android.app.IActivityTaskManager;
+import android.app.TaskInfo;
 import android.app.TaskStackListener;
 import android.car.Car;
 import android.car.CarOccupantZoneManager;
@@ -62,7 +67,7 @@ public final class ClusterHomeApplication extends Application {
     private static final byte PHONE_AVAILABILITY = 1;
     private static final byte MUSIC_AVAILABILITY = 1;
 
-    private IActivityManager mAm;
+    private IActivityTaskManager mAtm;
     private InputManager mInputManager;
     private ClusterHomeManager mHomeManager;
     private CarOccupantZoneManager mOccupantZoneManager;
@@ -74,6 +79,8 @@ public final class ClusterHomeApplication extends Application {
     private int mUserLifeCycleEvent = USER_LIFECYCLE_EVENT_TYPE_STARTING;
 
     private ComponentName[] mClusterActivities;
+
+    private int mMainUiType = UI_TYPE_CLUSTER_NONE;
 
     @Override
     public void onCreate() {
@@ -87,9 +94,9 @@ public final class ClusterHomeApplication extends Application {
                 ComponentName.unflattenFromString(
                         getString(R.string.config_clusterPhoneActivity)),
         };
-        mAm = ActivityManager.getService();
+        mAtm = ActivityTaskManager.getService();
         try {
-            mAm.registerTaskStackListener(mTaskStackListener);
+            mAtm.registerTaskStackListener(mTaskStackListener);
         } catch (RemoteException e) {
             Slog.e(TAG, "remote exception from AM", e);
         }
@@ -140,7 +147,7 @@ public final class ClusterHomeApplication extends Application {
         mUserManager.removeListener(mUserLifecycleListener);
         mHomeManager.unregisterClusterHomeCallback(mClusterHomeCalback);
         try {
-            mAm.unregisterTaskStackListener(mTaskStackListener);
+            mAtm.unregisterTaskStackListener(mTaskStackListener);
         } catch (RemoteException e) {
             Slog.e(TAG, "remote exception from AM", e);
         }
@@ -189,20 +196,26 @@ public final class ClusterHomeApplication extends Application {
     };
 
     private final TaskStackListener mTaskStackListener = new TaskStackListener() {
+        // onTaskMovedToFront isn't called when Activity-change happens within the same task.
         @Override
-        public void onTaskMovedToFront(ActivityManager.RunningTaskInfo taskInfo)
-                throws RemoteException {
-            if (taskInfo.displayId != mClusterDisplayId) return;
+        public void onTaskStackChanged() throws RemoteException {
+            TaskInfo taskInfo = mAtm.getRootTaskInfoOnDisplay(
+                    WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_UNDEFINED, mClusterDisplayId);
             int uiType = identifyTopTask(taskInfo);
             if (uiType == UI_TYPE_CLUSTER_NONE) {
                 Slog.w(TAG, "Unexpected top Activity on Cluster: " + taskInfo.topActivity);
                 return;
             }
+            if (mMainUiType == uiType) {
+                // Don't report the same UI type repeatedly.
+                return;
+            }
+            mMainUiType = uiType;
             mHomeManager.reportState(uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
         }
     };
 
-    private int identifyTopTask(ActivityManager.RunningTaskInfo taskInfo) {
+    private int identifyTopTask(TaskInfo taskInfo) {
         for (int i = mClusterActivities.length - 1; i >=0; --i) {
             if (mClusterActivities[i].equals(taskInfo.topActivity)) {
                 return i;
