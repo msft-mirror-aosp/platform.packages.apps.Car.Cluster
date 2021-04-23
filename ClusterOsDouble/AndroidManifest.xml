@@ -17,6 +17,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.android.car.cluster.osdouble">
 
+    <!-- Required to show car sensor data -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED"/>
+    <uses-permission android:name="android.car.permission.CAR_ENERGY"/>
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN"/>
+    <uses-permission android:name="android.car.permission.CAR_INFO"/>
+    <uses-permission android:name="android.car.permission.CAR_ENGINE_DETAILED"/>
     <!-- to access the Vendor properties -->
     <uses-permission android:name="android.car.permission.CAR_VENDOR_EXTENSION"/>
 
