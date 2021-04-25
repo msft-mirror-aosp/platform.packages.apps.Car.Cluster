@@ -29,6 +29,7 @@ android_app {
         "android.car.cluster.navigation",
         "androidx.annotation_annotation",
         "androidx-constraintlayout_constraintlayout",
+        "androidx.lifecycle_lifecycle-extensions",
     ],
 
     optimize: {

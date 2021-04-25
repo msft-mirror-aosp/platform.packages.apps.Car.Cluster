@@ -18,7 +18,6 @@ package com.android.car.cluster.osdouble;
 
 import static com.android.car.cluster.osdouble.ClusterOsDoubleApplication.TAG;
 
-import android.app.Activity;
 import android.car.Car;
 import android.car.VehiclePropertyIds;
 import android.car.hardware.CarPropertyValue;
@@ -28,18 +27,28 @@ import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.os.Bundle;
+import android.util.ArrayMap;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.TextView;
+
+import androidx.activity.ComponentActivity;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.android.car.cluster.sensors.Sensors;
+import com.android.car.cluster.view.ClusterViewModel;
 
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * The Activity which plays the role of ClusterOs for the testing.
  */
-public class ClusterOsDoubleActivity extends Activity {
+public class ClusterOsDoubleActivity extends ComponentActivity {
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
     // VehiclePropertyGroup
@@ -56,6 +65,9 @@ public class ClusterOsDoubleActivity extends Activity {
     private SurfaceView mSurfaceView;
     private Rect mUnobscuredBounds;
     private VirtualDisplay mVirtualDisplay;
+
+    private ClusterViewModel mClusterViewModel;
+    private ArrayMap<Sensors.Gear, View> mGearsToIcon = new ArrayMap<>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -75,6 +87,19 @@ public class ClusterOsDoubleActivity extends Activity {
         mSurfaceView = view.findViewById(R.id.cluster_display);
         mSurfaceView.getHolder().addCallback(mSurfaceViewCallback);
         setContentView(view);
+
+        registerGear(findViewById(R.id.gear_parked), Sensors.Gear.PARK);
+        registerGear(findViewById(R.id.gear_reverse), Sensors.Gear.REVERSE);
+        registerGear(findViewById(R.id.gear_neutral), Sensors.Gear.NEUTRAL);
+        registerGear(findViewById(R.id.gear_drive), Sensors.Gear.DRIVE);
+
+        mClusterViewModel = new ViewModelProvider(this).get(ClusterViewModel.class);
+        mClusterViewModel.getSensor(Sensors.SENSOR_GEAR).observe(this, this::updateSelectedGear);
+
+        registerSensor(findViewById(R.id.info_fuel), mClusterViewModel.getFuelLevel());
+        registerSensor(findViewById(R.id.info_speed), mClusterViewModel.getSpeed());
+        registerSensor(findViewById(R.id.info_range), mClusterViewModel.getRange());
+        registerSensor(findViewById(R.id.info_rpm), mClusterViewModel.getRPM());
     }
 
     private final SurfaceHolder.Callback mSurfaceViewCallback = new SurfaceHolder.Callback() {
@@ -147,5 +172,32 @@ public class ClusterOsDoubleActivity extends Activity {
 
     private static int toVendorId(int propId) {
         return (propId & ~MASK) | VENDOR;
+    }
+
+    private <V> void registerSensor(TextView textView, LiveData<V> source) {
+        String emptyValue = getString(R.string.info_value_empty);
+        source.observe(this, value -> {
+            // Need to check that the text is actually different, or else
+            // it will generate a bunch of CONTENT_CHANGE_TYPE_TEXT accessability
+            // actions. This will cause cts tests to fail when they waitForIdle(),
+            // and the system never idles because it's constantly updating these
+            // TextViews
+            if (value != null && !value.toString().contentEquals(textView.getText())) {
+                textView.setText(value.toString());
+            }
+            if (value == null && !emptyValue.contentEquals(textView.getText())) {
+                textView.setText(emptyValue);
+            }
+        });
+    }
+
+    private void registerGear(View view, Sensors.Gear gear) {
+        mGearsToIcon.put(gear, view);
+    }
+
+    private void updateSelectedGear(Sensors.Gear gear) {
+        for (Map.Entry<Sensors.Gear, View> entry : mGearsToIcon.entrySet()) {
+            entry.getValue().setSelected(entry.getKey() == gear);
+        }
     }
 }
