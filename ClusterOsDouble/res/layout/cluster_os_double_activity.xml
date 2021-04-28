@@ -183,7 +183,17 @@
         app:layout_constraintBottom_toBottomOf="parent">
 
         <Button
+            android:id="@+id/btn_car_info"
+            android:clickable="true"
+            android:layout_width="@dimen/facet_icon_size"
+            android:layout_height="@dimen/facet_icon_size"
+            android:layout_margin="@dimen/facet_icon_margin"
+            android:background="@drawable/ic_car_info"
+            android:backgroundTint="@color/icon_color"
+            android:focusableInTouchMode="true" />
+        <Button
             android:id="@+id/btn_nav"
+            android:clickable="true"
             android:layout_width="@dimen/facet_icon_size"
             android:layout_height="@dimen/facet_icon_size"
             android:layout_margin="@dimen/facet_icon_margin"
@@ -191,15 +201,8 @@
             android:backgroundTint="@color/icon_color"
             android:focusableInTouchMode="true" />
         <Button
-            android:id="@+id/btn_phone"
-            android:layout_width="@dimen/facet_icon_size"
-            android:layout_height="@dimen/facet_icon_size"
-            android:layout_margin="@dimen/facet_icon_margin"
-            android:background="@drawable/ic_phone"
-            android:backgroundTint="@color/icon_color"
-            android:focusableInTouchMode="true" />
-        <Button
             android:id="@+id/btn_music"
+            android:clickable="true"
             android:layout_width="@dimen/facet_icon_size"
             android:layout_height="@dimen/facet_icon_size"
             android:layout_margin="@dimen/facet_icon_margin"
@@ -207,11 +210,12 @@
             android:backgroundTint="@color/icon_color"
             android:focusableInTouchMode="true" />
         <Button
-            android:id="@+id/btn_car_info"
+            android:id="@+id/btn_phone"
+            android:clickable="true"
             android:layout_width="@dimen/facet_icon_size"
             android:layout_height="@dimen/facet_icon_size"
             android:layout_margin="@dimen/facet_icon_margin"
-            android:background="@drawable/ic_car_info"
+            android:background="@drawable/ic_phone"
             android:backgroundTint="@color/icon_color"
             android:focusableInTouchMode="true" />
     </LinearLayout>

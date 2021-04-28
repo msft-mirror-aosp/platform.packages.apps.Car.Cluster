@@ -16,6 +16,10 @@
 
 package com.android.car.cluster.osdouble;
 
+import static android.car.VehicleAreaType.VEHICLE_AREA_TYPE_GLOBAL;
+import static android.car.cluster.ClusterHomeManager.UI_TYPE_CLUSTER_HOME;
+import static android.car.cluster.ClusterHomeManager.UI_TYPE_CLUSTER_NONE;
+
 import static com.android.car.cluster.osdouble.ClusterOsDoubleApplication.TAG;
 
 import android.car.Car;
@@ -29,6 +33,8 @@ import android.hardware.display.VirtualDisplay;
 import android.os.Bundle;
 import android.util.ArrayMap;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -42,6 +48,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.android.car.cluster.sensors.Sensors;
 import com.android.car.cluster.view.ClusterViewModel;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -58,6 +65,7 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
 
     private static final int VENDOR_CLUSTER_REPORT_STATE = toVendorId(
             VehiclePropertyIds.CLUSTER_REPORT_STATE);
+    private static final int VENDOR_SWITCH_UI = toVendorId(VehiclePropertyIds.CLUSTER_SWITCH_UI);
 
     private DisplayManager mDisplayManager;
     private CarPropertyManager mPropertyManager;
@@ -67,7 +75,10 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
     private VirtualDisplay mVirtualDisplay;
 
     private ClusterViewModel mClusterViewModel;
-    private ArrayMap<Sensors.Gear, View> mGearsToIcon = new ArrayMap<>();
+    private final ArrayMap<Sensors.Gear, View> mGearsToIcon = new ArrayMap<>();
+    private final ArrayList<View> mUiToButton = new ArrayList<>();
+    int mCurrentUi = UI_TYPE_CLUSTER_HOME;
+    int mTotalUiSize;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -100,6 +111,12 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
         registerSensor(findViewById(R.id.info_speed), mClusterViewModel.getSpeed());
         registerSensor(findViewById(R.id.info_range), mClusterViewModel.getRange());
         registerSensor(findViewById(R.id.info_rpm), mClusterViewModel.getRPM());
+
+        // The order should be matched with ClusterHomeApplication.
+        registerUi(findViewById(R.id.btn_car_info));
+        registerUi(findViewById(R.id.btn_nav));
+        registerUi(findViewById(R.id.btn_music));
+        registerUi(findViewById(R.id.btn_phone));
     }
 
     private final SurfaceHolder.Callback mSurfaceViewCallback = new SurfaceHolder.Callback() {
@@ -158,9 +175,13 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
     private final CarPropertyEventCallback mPropertyEventCallback = new CarPropertyEventCallback() {
         @Override
         public void onChangeEvent(CarPropertyValue carProp) {
+            int propertyId = carProp.getPropertyId();
             if (DBG) {
-                Log.d(TAG, "onChangeEvent: " + carProp.getPropertyId() + ", "
+                Log.d(TAG, "onChangeEvent: " + propertyId + ", "
                         + Arrays.toString((Object[]) carProp.getValue()));
+            }
+            if (propertyId == VENDOR_CLUSTER_REPORT_STATE) {
+                onClusterReportState((Object[]) carProp.getValue());
             }
         }
 
@@ -169,6 +190,27 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
 
         }
     };
+
+    private void onClusterReportState(Object[] values) {
+        // CLUSTER_REPORT_STATE should have at least 11 elements, check vehicle/2.0/types.hal.
+        if (values.length < 11) {
+            // TODO(b/186455827): change this to throw the exception as soon as the bug is fixed.
+            return;
+        }
+        // mainUI is the 10th element, refer to vehicle/2.0/types.hal.
+        int mainUi = (Integer) values[9];
+        if (mainUi >= 0 && mainUi < mTotalUiSize) {
+            selectUiButton(mainUi);
+        }
+    }
+
+    private void selectUiButton(int mainUi) {
+        for (int i = 0; i < mTotalUiSize; ++i) {
+            View button = mUiToButton.get(i);
+            button.setSelected(i == mainUi);
+        }
+        mCurrentUi = mainUi;
+    }
 
     private static int toVendorId(int propId) {
         return (propId & ~MASK) | VENDOR;
@@ -199,5 +241,33 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
         for (Map.Entry<Sensors.Gear, View> entry : mGearsToIcon.entrySet()) {
             entry.getValue().setSelected(entry.getKey() == gear);
         }
+    }
+
+    private void registerUi(View view) {
+        int currentUi = mUiToButton.size();
+        mUiToButton.add(view);
+        mTotalUiSize = mUiToButton.size();
+        view.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                Log.d(TAG, "onTouch: " + currentUi);
+                switchUi(currentUi);
+            }
+            return true;
+        });
+    }
+
+    private void switchUi(int mainUi) {
+        mPropertyManager.setProperty(Integer[].class, VENDOR_SWITCH_UI, VEHICLE_AREA_TYPE_GLOBAL,
+                new Integer[] {mainUi, UI_TYPE_CLUSTER_NONE});
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        Log.d(TAG, "onKeyDown: " + keyCode);
+        if (keyCode == KeyEvent.KEYCODE_MENU) {
+            switchUi((mCurrentUi + 1) % mTotalUiSize);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 }

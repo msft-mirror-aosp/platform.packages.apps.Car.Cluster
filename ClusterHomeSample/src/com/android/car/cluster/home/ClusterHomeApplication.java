@@ -59,8 +59,8 @@ public final class ClusterHomeApplication extends Application {
     private static final boolean DBG = false;
     private static final int UI_TYPE_HOME = UI_TYPE_CLUSTER_HOME;
     private static final int UI_TYPE_MAPS = UI_TYPE_HOME + 1;
-    private static final int UI_TYPE_PHONE = UI_TYPE_HOME + 2;
-    private static final int UI_TYPE_MUSIC = UI_TYPE_HOME + 3;
+    private static final int UI_TYPE_MUSIC = UI_TYPE_HOME + 2;
+    private static final int UI_TYPE_PHONE = UI_TYPE_HOME + 3;
 
     private static final byte HOME_AVAILABILITY = 1;
     private static final byte MAPS_AVAILABILITY = 1;
