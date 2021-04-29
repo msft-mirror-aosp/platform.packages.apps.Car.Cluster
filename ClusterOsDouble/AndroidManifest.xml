@@ -40,6 +40,7 @@
                 android:showForAllUsers="true"
                 android:excludeFromRecents="true"
                 android:screenOrientation="nosensor"
+                android:configChanges="uiMode|mcc|mnc"
                 android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
             <meta-data android:name="distractionOptimized" android:value="true"/>
             <intent-filter>

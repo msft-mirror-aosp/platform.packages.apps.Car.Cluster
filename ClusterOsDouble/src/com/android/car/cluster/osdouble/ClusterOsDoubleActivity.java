@@ -119,6 +119,13 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
         registerUi(findViewById(R.id.btn_phone));
     }
 
+    @Override
+    protected void onDestroy() {
+        mVirtualDisplay.release();
+        mVirtualDisplay = null;
+        super.onDestroy();
+    }
+
     private final SurfaceHolder.Callback mSurfaceViewCallback = new SurfaceHolder.Callback() {
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
