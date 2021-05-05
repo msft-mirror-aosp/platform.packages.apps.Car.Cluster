@@ -19,6 +19,8 @@ package com.android.car.cluster.osdouble;
 import static android.car.VehicleAreaType.VEHICLE_AREA_TYPE_GLOBAL;
 import static android.car.cluster.ClusterHomeManager.UI_TYPE_CLUSTER_HOME;
 import static android.car.cluster.ClusterHomeManager.UI_TYPE_CLUSTER_NONE;
+import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY;
+import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_TRUSTED;
 
 import static com.android.car.cluster.osdouble.ClusterOsDoubleApplication.TAG;
 
@@ -170,8 +172,8 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
                 + "x" + height);
         return mDisplayManager.createVirtualDisplay(/* projection= */ null, "ClusterOsDouble-VD",
                 width, height, 160, surface,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY, /* callback= */
-                null, /* handler= */ null, "ClusterDisplay");
+                VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY | VIRTUAL_DISPLAY_FLAG_TRUSTED,
+                /* callback= */ null, /* handler= */ null, "ClusterDisplay");
     }
 
     private void initClusterOsDouble() {

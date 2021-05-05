@@ -25,7 +25,8 @@
     <uses-permission android:name="android.car.permission.CAR_ENGINE_DETAILED"/>
     <!-- to access the Vendor properties -->
     <uses-permission android:name="android.car.permission.CAR_VENDOR_EXTENSION"/>
-
+    <!-- to create the trusted virtual display -->
+    <uses-permission android:name="android.permission.ADD_TRUSTED_DISPLAY"/>
     <!--
         android:directBootAware to start the application regardless of user-unlocking.
         android:persistent not to be killed by OOM.
