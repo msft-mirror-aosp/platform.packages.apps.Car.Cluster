@@ -38,21 +38,6 @@ public class ImageResolver {
     private final BitmapFetcher mFetcher;
 
     /**
-     * Interface used for fetching bitmaps from a content resolver
-     */
-    public interface BitmapFetcher {
-        /**
-         * Returns a {@link Bitmap} given a request Uri and dimensions
-         */
-        Bitmap getBitmap(@NonNull Uri uri, int width, int height);
-
-        /**
-         * Returns a {@link Bitmap} given a request Uri, dimensions, and offLanesAlpha value
-         */
-        Bitmap getBitmap(@NonNull Uri uri, int width, int height, float offLanesAlpha);
-    }
-
-    /**
      * Creates a resolver that delegate the image retrieval to the given fetcher.
      */
     public ImageResolver(BitmapFetcher fetcher) {
