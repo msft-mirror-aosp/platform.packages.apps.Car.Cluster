@@ -220,8 +220,7 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
         if (DBG) Log.d(TAG, "onClusterReportState: " + Arrays.toString(values));
         // CLUSTER_REPORT_STATE should have at least 11 elements, check vehicle/2.0/types.hal.
         if (values.length < 11) {
-            // TODO(b/186455827): change this to throw the exception as soon as the bug is fixed.
-            return;
+            throw new IllegalArgumentException("Insufficient size of CLUSTER_REPORT_STATE");
         }
         // mainUI is the 10th element, refer to vehicle/2.0/types.hal.
         int mainUi = (Integer) values[9];
