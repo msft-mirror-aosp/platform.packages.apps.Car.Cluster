@@ -19,6 +19,9 @@ package com.android.car.cluster.home;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.IActivityManager;
+import android.car.Car;
+import android.car.cluster.ClusterActivityState;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.util.Log;
@@ -29,11 +32,28 @@ import android.view.WindowManager;
  * Skeleton Activity for Home UI in Cluster display.
  */
 public class ClusterHomeActivity extends Activity {
+    private static final String TAG = ClusterHomeActivity.class.getSimpleName();
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         View view = getLayoutInflater().inflate(R.layout.cluster_home_activity, /* root= */ null);
         setContentView(view);
-  }
+        logIntent(getIntent());
+   }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        logIntent(intent);
+    }
+
+    private static void logIntent(Intent intent) {
+        Log.d(TAG, "Got Intent=" + intent);
+        if (intent.hasExtra(Car.CAR_EXTRA_CLUSTER_ACTIVITY_STATE)) {
+            Bundle extra = intent.getBundleExtra(Car.CAR_EXTRA_CLUSTER_ACTIVITY_STATE);
+            ClusterActivityState activityState = ClusterActivityState.fromBundle(extra);
+            Log.d(TAG, ">> ClusterActivityState=" + activityState);
+        }
+    }
 }

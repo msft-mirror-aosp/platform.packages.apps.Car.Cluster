@@ -31,12 +31,12 @@ import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.ActivityTaskManager;
 import android.app.Application;
-import android.app.IActivityManager;
 import android.app.IActivityTaskManager;
 import android.app.TaskInfo;
 import android.app.TaskStackListener;
 import android.car.Car;
 import android.car.CarOccupantZoneManager;
+import android.car.cluster.ClusterActivityState;
 import android.car.cluster.ClusterHomeManager;
 import android.car.cluster.ClusterState;
 import android.car.input.CarInputManager;
@@ -45,10 +45,11 @@ import android.car.user.CarUserManager;
 import android.car.user.CarUserManager.UserLifecycleListener;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.hardware.input.InputManager;
 import android.os.RemoteException;
 import android.os.UserHandle;
-import android.util.Slog;
+import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
 
@@ -70,17 +71,16 @@ public final class ClusterHomeApplication extends Application {
     private IActivityTaskManager mAtm;
     private InputManager mInputManager;
     private ClusterHomeManager mHomeManager;
-    private CarOccupantZoneManager mOccupantZoneManager;
     private CarUserManager mUserManager;
     private CarInputManager mCarInputManager;
     private ClusterState mClusterState;
     private byte mUiAvailability[];
-    private int mClusterDisplayId = Display.INVALID_DISPLAY;
     private int mUserLifeCycleEvent = USER_LIFECYCLE_EVENT_TYPE_STARTING;
 
     private ComponentName[] mClusterActivities;
 
-    private int mMainUiType = UI_TYPE_CLUSTER_NONE;
+    private int mLastLaunchedUiType = UI_TYPE_CLUSTER_NONE;
+    private int mLastReportedUiType = UI_TYPE_CLUSTER_NONE;
 
     @Override
     public void onCreate() {
@@ -98,7 +98,7 @@ public final class ClusterHomeApplication extends Application {
         try {
             mAtm.registerTaskStackListener(mTaskStackListener);
         } catch (RemoteException e) {
-            Slog.e(TAG, "remote exception from AM", e);
+            Log.e(TAG, "remote exception from AM", e);
         }
         mInputManager = getApplicationContext().getSystemService(InputManager.class);
 
@@ -107,8 +107,6 @@ public final class ClusterHomeApplication extends Application {
                 (car, ready) -> {
                     if (!ready) return;
                     mHomeManager = (ClusterHomeManager) car.getCarManager(Car.CLUSTER_HOME_SERVICE);
-                    mOccupantZoneManager = (CarOccupantZoneManager) car.getCarManager(
-                            Car.CAR_OCCUPANT_ZONE_SERVICE);
                     mUserManager = (CarUserManager) car.getCarManager(Car.CAR_USER_SERVICE);
                     mCarInputManager = (CarInputManager) car.getCarManager(Car.CAR_INPUT_SERVICE);
                     initClusterHome();
@@ -118,12 +116,12 @@ public final class ClusterHomeApplication extends Application {
     private void initClusterHome() {
         mHomeManager.registerClusterHomeCallback(getMainExecutor(),mClusterHomeCalback);
         mClusterState = mHomeManager.getClusterState();
+        if (!mClusterState.on) {
+            mHomeManager.requestDisplay(UI_TYPE_HOME);
+        }
         mUiAvailability = buildUiAvailability();
         mHomeManager.reportState(mClusterState.uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
         mHomeManager.registerClusterHomeCallback(getMainExecutor(), mClusterHomeCalback);
-
-        mClusterDisplayId = mOccupantZoneManager.getDisplayIdForDriver(
-                DISPLAY_TYPE_INSTRUMENT_CLUSTER);
 
         mUserManager.addListener(getMainExecutor(), mUserLifecycleListener);
 
@@ -133,7 +131,7 @@ public final class ClusterHomeApplication extends Application {
                 CarInputManager.CAPTURE_REQ_FLAGS_TAKE_ALL_EVENTS_FOR_DISPLAY,
                 mInputCaptureCallback);
         if (r != CarInputManager.INPUT_CAPTURE_RESPONSE_SUCCEEDED) {
-            Slog.e(TAG, "Failed to capture InputEvent on Cluster: r=" + r);
+            Log.e(TAG, "Failed to capture InputEvent on Cluster: r=" + r);
         }
 
         if (mClusterState.uiType != UI_TYPE_HOME) {
@@ -149,20 +147,32 @@ public final class ClusterHomeApplication extends Application {
         try {
             mAtm.unregisterTaskStackListener(mTaskStackListener);
         } catch (RemoteException e) {
-            Slog.e(TAG, "remote exception from AM", e);
+            Log.e(TAG, "remote exception from AM", e);
         }
         super.onTerminate();
     }
 
     private void startClusterActivity(int uiType) {
         if (mUserLifeCycleEvent != USER_LIFECYCLE_EVENT_TYPE_UNLOCKED) {
-            Slog.i(TAG, "Ignore to start Activity(" + uiType + ") during user-switching");
+            Log.i(TAG, "Ignore to start Activity(" + uiType + ") during user-switching");
             return;
         }
-        mClusterState.uiType = uiType;
+        if (mClusterState == null || mClusterState.displayId == Display.INVALID_DISPLAY) {
+            Log.w(TAG, "Cluster display is not ready");
+            return;
+        }
+        mLastLaunchedUiType = uiType;
         ComponentName activity = mClusterActivities[uiType];
+
         Intent intent = new Intent(ACTION_MAIN).setComponent(activity);
+        if (mClusterState.bounds != null && mClusterState.insets != null) {
+            Rect unobscured = new Rect(mClusterState.bounds);
+            unobscured.inset(mClusterState.insets);
+            ClusterActivityState state = ClusterActivityState.create(mClusterState.on, unobscured);
+            intent.putExtra(Car.CAR_EXTRA_CLUSTER_ACTIVITY_STATE, state.toBundle());
+        }
         ActivityOptions options = ActivityOptions.makeBasic();
+
         // This sample assumes the Activities in this package are running as the system user,
         // and the other Activities are running as a current user.
         int userId = ActivityManager.getCurrentUser();
@@ -183,11 +193,11 @@ public final class ClusterHomeApplication extends Application {
         @Override
         public void onClusterStateChanged(
                 ClusterState state, @ClusterHomeManager.Config int changes) {
+            mClusterState = state;
             if ((changes & ClusterHomeManager.CONFIG_UI_TYPE) != 0
-                    && mClusterState.uiType != state.uiType) {
+                    && mLastLaunchedUiType != state.uiType) {
                 startClusterActivity(state.uiType);
             }
-            // TODO(b/173454330): handle CONFIG_DISPLAY_XXX
         }
         @Override
         public void onNavigationState(byte[] navigationState) {
@@ -198,22 +208,38 @@ public final class ClusterHomeApplication extends Application {
     private final TaskStackListener mTaskStackListener = new TaskStackListener() {
         // onTaskMovedToFront isn't called when Activity-change happens within the same task.
         @Override
-        public void onTaskStackChanged() throws RemoteException {
-            TaskInfo taskInfo = mAtm.getRootTaskInfoOnDisplay(
-                    WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_UNDEFINED, mClusterDisplayId);
-            int uiType = identifyTopTask(taskInfo);
-            if (uiType == UI_TYPE_CLUSTER_NONE) {
-                Slog.w(TAG, "Unexpected top Activity on Cluster: " + taskInfo.topActivity);
-                return;
-            }
-            if (mMainUiType == uiType) {
-                // Don't report the same UI type repeatedly.
-                return;
-            }
-            mMainUiType = uiType;
-            mHomeManager.reportState(uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
+        public void onTaskStackChanged()  {
+            getMainExecutor().execute(ClusterHomeApplication.this::handleTaskStackChanged);
         }
     };
+
+    private void handleTaskStackChanged() {
+        if (mClusterState.displayId == Display.INVALID_DISPLAY) {
+            return;
+        }
+        TaskInfo taskInfo;
+        try {
+             taskInfo = mAtm.getRootTaskInfoOnDisplay(
+                    WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_UNDEFINED, mClusterState.displayId);
+        } catch (RemoteException e) {
+            Log.e(TAG, "remote exception from AM", e);
+            return;
+        }
+        if (taskInfo == null) {
+            return;
+        }
+        int uiType = identifyTopTask(taskInfo);
+        if (uiType == UI_TYPE_CLUSTER_NONE) {
+            Log.w(TAG, "Unexpected top Activity on Cluster: " + taskInfo.topActivity);
+            return;
+        }
+        if (mLastReportedUiType == uiType) {
+            // Don't report the same UI type repeatedly.
+            return;
+        }
+        mLastReportedUiType = uiType;
+        mHomeManager.reportState(uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
+    }
 
     private int identifyTopTask(TaskInfo taskInfo) {
         for (int i = mClusterActivities.length - 1; i >=0; --i) {
@@ -242,7 +268,7 @@ public final class ClusterHomeApplication extends Application {
     private void onKeyEvent(KeyEvent keyEvent) {
         if (keyEvent.getKeyCode() == KeyEvent.KEYCODE_MENU) {
             if (keyEvent.getAction() != KeyEvent.ACTION_DOWN) return;
-            int nextUiType = (mClusterState.uiType + 1) % mUiAvailability.length;
+            int nextUiType = (mLastLaunchedUiType + 1) % mUiAvailability.length;
             startClusterActivity(nextUiType);
             return;
         }

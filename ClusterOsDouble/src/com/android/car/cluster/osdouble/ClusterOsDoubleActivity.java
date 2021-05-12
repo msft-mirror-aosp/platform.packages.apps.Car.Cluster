@@ -30,6 +30,7 @@ import android.car.VehiclePropertyIds;
 import android.car.hardware.CarPropertyValue;
 import android.car.hardware.property.CarPropertyManager;
 import android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback;
+import android.graphics.Insets;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
@@ -77,12 +78,17 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
             VehiclePropertyIds.CLUSTER_SWITCH_UI);
     private static final int VENDOR_CLUSTER_NAVIGATION_STATE = toVendorId(
             VehiclePropertyIds.CLUSTER_NAVIGATION_STATE);
+    private static final int VENDOR_CLUSTER_REQUEST_DISPLAY = toVendorId(
+            VehiclePropertyIds.CLUSTER_REQUEST_DISPLAY);
+    private static final int VENDOR_CLUSTER_DISPLAY_STATE = toVendorId(
+            VehiclePropertyIds.CLUSTER_DISPLAY_STATE);
 
     private DisplayManager mDisplayManager;
     private CarPropertyManager mPropertyManager;
 
     private SurfaceView mSurfaceView;
-    private Rect mUnobscuredBounds;
+    private Rect mBounds;
+    private Insets mInsets;
     private VirtualDisplay mVirtualDisplay;
 
     private ClusterViewModel mClusterViewModel;
@@ -160,13 +166,11 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
                     .getDimension(R.dimen.speedometer_overlap_width);
             int obscuredHeight = (int) getResources()
                     .getDimension(R.dimen.navigation_gradient_height);
-            mUnobscuredBounds = new Rect(
-                    obscuredWidth,          /* left: size of gauge */
-                    obscuredHeight,         /* top: gradient */
-                    width - obscuredWidth,  /* right: size of the display - size of gauge */
-                    height - obscuredHeight /* bottom: size of display - gradient */
-            );
-
+            mBounds = new Rect(/* left= */ 0, /* top= */ 0,
+                    /* right= */ width, /* bottom= */ height);
+            // Adds some empty space in the boundary of the display to verify if mBounds works.
+            mBounds.inset(/* dx= */ 12, /* dy= */ 12);
+            mInsets = Insets.of(obscuredWidth, obscuredHeight, obscuredWidth, obscuredHeight);
             if (mVirtualDisplay == null) {
                 mVirtualDisplay = createVirtualDisplay(holder.getSurface(), width, height);
             } else {
@@ -197,6 +201,8 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
                 VENDOR_CLUSTER_REPORT_STATE, CarPropertyManager.SENSOR_RATE_ONCHANGE);
         mPropertyManager.registerCallback(mPropertyEventCallback,
                 VENDOR_CLUSTER_NAVIGATION_STATE, CarPropertyManager.SENSOR_RATE_ONCHANGE);
+        mPropertyManager.registerCallback(mPropertyEventCallback,
+                VENDOR_CLUSTER_REQUEST_DISPLAY, CarPropertyManager.SENSOR_RATE_ONCHANGE);
     }
 
     private final CarPropertyEventCallback mPropertyEventCallback = new CarPropertyEventCallback() {
@@ -207,6 +213,8 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
                 onClusterReportState((Object[]) carProp.getValue());
             } else if (propertyId == VENDOR_CLUSTER_NAVIGATION_STATE) {
                 onClusterNavigationState((byte[]) carProp.getValue());
+            } else if (propertyId == VENDOR_CLUSTER_REQUEST_DISPLAY) {
+                onClusterRequestDisplay((Integer) carProp.getValue());
             }
         }
 
@@ -220,8 +228,7 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
         if (DBG) Log.d(TAG, "onClusterReportState: " + Arrays.toString(values));
         // CLUSTER_REPORT_STATE should have at least 11 elements, check vehicle/2.0/types.hal.
         if (values.length < 11) {
-            // TODO(b/186455827): change this to throw the exception as soon as the bug is fixed.
-            return;
+            throw new IllegalArgumentException("Insufficient size of CLUSTER_REPORT_STATE");
         }
         // mainUI is the 10th element, refer to vehicle/2.0/types.hal.
         int mainUi = (Integer) values[9];
@@ -248,6 +255,12 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
             Log.e(TAG, "Error parsing navigation state proto", e);
         }
     }
+
+    private void onClusterRequestDisplay(Integer mainUi) {
+        if (DBG) Log.d(TAG, "onClusterRequestDisplay: " + mainUi);
+        sendDisplayState();
+    }
+
 
     private static int toVendorId(int propId) {
         return (propId & ~MASK) | VENDOR;
@@ -291,6 +304,16 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
             }
             return true;
         });
+    }
+
+    private void sendDisplayState() {
+        if (mBounds == null || mInsets == null) return;
+        mPropertyManager.setProperty(Integer[].class, VENDOR_CLUSTER_DISPLAY_STATE,
+                VEHICLE_AREA_TYPE_GLOBAL, new Integer[] {
+                        1  /* Display On */,
+                        mBounds.left, mBounds.top, mBounds.right, mBounds.bottom,
+                        mInsets.left, mInsets.top, mInsets.right, mInsets.bottom,
+                        UI_TYPE_CLUSTER_HOME, UI_TYPE_CLUSTER_NONE});
     }
 
     private void switchUi(int mainUi) {
