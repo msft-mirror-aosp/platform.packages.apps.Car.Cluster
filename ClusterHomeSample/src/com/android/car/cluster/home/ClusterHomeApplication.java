@@ -194,8 +194,12 @@ public final class ClusterHomeApplication extends Application {
         public void onClusterStateChanged(
                 ClusterState state, @ClusterHomeManager.Config int changes) {
             mClusterState = state;
-            if ((changes & ClusterHomeManager.CONFIG_UI_TYPE) != 0
-                    && mLastLaunchedUiType != state.uiType) {
+            // We'll restart Activity when the display bounds or insets are changed, to let Activity
+            // redraw itself to fit the changed attributes.
+            if ((changes & ClusterHomeManager.CONFIG_DISPLAY_BOUNDS) != 0
+                    || (changes & ClusterHomeManager.CONFIG_DISPLAY_INSETS) != 0
+                    || ((changes & ClusterHomeManager.CONFIG_UI_TYPE) != 0
+                            && mLastLaunchedUiType != state.uiType)) {
                 startClusterActivity(state.uiType);
             }
         }

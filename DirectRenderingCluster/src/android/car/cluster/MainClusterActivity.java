@@ -22,6 +22,7 @@ import static android.content.Intent.ACTION_USER_SWITCHED;
 import static android.content.Intent.ACTION_USER_UNLOCKED;
 import static android.content.PermissionChecker.PERMISSION_GRANTED;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.car.Car;
@@ -34,6 +35,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Rect;
@@ -437,13 +439,14 @@ public class MainClusterActivity extends FragmentActivity implements
         }
         mHandler.removeCallbacks(mRetryLaunchNavigationActivity);
 
-        ComponentName navigationActivity = getNavigationActivity(this);
+        ActivityInfo activityInfo = getNavigationActivity(this);
+        ComponentName navigationActivity = new ComponentName(activityInfo.packageName,
+                activityInfo.name);
+        int userId = (activityInfo.flags & ActivityInfo.FLAG_SHOW_FOR_ALL_USERS) != 0
+                ? UserHandle.USER_SYSTEM : ActivityManager.getCurrentUser();
         mClusterViewModel.setFreeNavigationActivity(navigationActivity);
 
         try {
-            if (navigationActivity == null) {
-                throw new ActivityNotFoundException();
-            }
             ClusterActivityState activityState = ClusterActivityState
                     .create(true, mNavigationDisplay.mUnobscuredBounds);
             Intent intent = new Intent(Intent.ACTION_MAIN)
@@ -452,12 +455,12 @@ public class MainClusterActivity extends FragmentActivity implements
                     .putExtra(Car.CAR_EXTRA_CLUSTER_ACTIVITY_STATE,
                             activityState.toBundle());
 
-            Log.d(TAG, "Launching: " + intent + " on display: " + mNavigationDisplay.mDisplayId);
+            Log.d(TAG, "Launching: " + intent + " on display" + mNavigationDisplay.mDisplayId
+                    + " as user" + userId);
             ActivityOptions activityOptions = ActivityOptions.makeBasic()
                     .setLaunchDisplayId(mNavigationDisplay.mDisplayId);
 
-            mService.startFixedActivityModeForDisplayAndUser(
-                    intent, activityOptions, ActivityManager.getCurrentUser());
+            mService.startFixedActivityModeForDisplayAndUser(intent, activityOptions, userId);
         } catch (ActivityNotFoundException ex) {
             // Some activities might not be available right on startup. We will retry.
             mHandler.postDelayed(mRetryLaunchNavigationActivity,
@@ -471,37 +474,27 @@ public class MainClusterActivity extends FragmentActivity implements
      * Returns a default navigation activity to show in the cluster.
      * In the current implementation we obtain this activity from an intent defined in a resources
      * file (which OEMs can overlay).
-     * Alternatively, other implementations could:
-     * <ul>
-     * <li>Dynamically detect what's the default navigation activity the user has selected on the
-     * head unit, and obtain the activity marked with
-     * {@link Car#CAR_CATEGORY_NAVIGATION} from the same package.
-     * <li>Let the user select one from settings.
-     * </ul>
+     * When it fails to find, parse or resolve the activity, it'll throw ActivityNotFoundException.
      */
-    static ComponentName getNavigationActivity(Context context) {
+    static @NonNull ActivityInfo getNavigationActivity(Context context) {
         PackageManager pm = context.getPackageManager();
-        int userId = ActivityManager.getCurrentUser();
         String intentString = context.getString(R.string.freeNavigationIntent);
 
         if (intentString == null) {
-            Log.w(TAG, "No free navigation activity defined");
-            return null;
+            throw new ActivityNotFoundException("No free navigation activity defined");
         }
         Log.i(TAG, "Free navigation intent: " + intentString);
 
         try {
             Intent intent = Intent.parseUri(intentString, Intent.URI_INTENT_SCHEME);
-            ResolveInfo navigationApp = pm.resolveActivityAsUser(intent,
-                    PackageManager.MATCH_DEFAULT_ONLY, userId);
+            ResolveInfo navigationApp = pm.resolveActivity(intent,
+                    PackageManager.MATCH_DEFAULT_ONLY);
             if (navigationApp == null) {
-                return null;
+                throw new ActivityNotFoundException("Can't resolve freeNavigationIntent");
             }
-            return new ComponentName(navigationApp.activityInfo.packageName,
-                    navigationApp.activityInfo.name);
+            return navigationApp.activityInfo;
         } catch (URISyntaxException ex) {
-            Log.e(TAG, "Unable to parse free navigation activity intent: '" + intentString + "'");
-            return null;
+            throw new ActivityNotFoundException("Unable to parse freeNavigationIntent");
         }
     }
 
