@@ -33,6 +33,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
@@ -209,8 +210,8 @@ public class ClusterRenderingService extends InstrumentClusterRenderingService i
     }
 
     private Intent getNavigationActivityIntent(int displayId) {
-        ComponentName component = MainClusterActivity.getNavigationActivity(this);
-        if (component == null) {
+        ActivityInfo activityInfo = MainClusterActivity.getNavigationActivity(this);
+        if (activityInfo == null) {
             Log.e(TAG, "Failed to resolve the navigation activity");
             return null;
         }
@@ -223,7 +224,7 @@ public class ClusterRenderingService extends InstrumentClusterRenderingService i
         setClusterActivityState(ClusterActivityState.create(/* visible= */ true,
                     /* unobscuredBounds= */ new Rect(0, 0, 240, 320)));
         return new Intent(Intent.ACTION_MAIN)
-            .setComponent(component)
+            .setClassName(activityInfo.packageName, activityInfo.name)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra(Car.CAR_EXTRA_CLUSTER_ACTIVITY_STATE,
                 ClusterActivityState.create(/* visible= */ true,
