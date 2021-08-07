@@ -317,8 +317,8 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
     }
 
     private void switchUi(int mainUi) {
-        mPropertyManager.setProperty(Integer[].class, VENDOR_CLUSTER_SWITCH_UI,
-                VEHICLE_AREA_TYPE_GLOBAL, new Integer[] {mainUi, UI_TYPE_CLUSTER_NONE});
+        mPropertyManager.setProperty(Integer.class, VENDOR_CLUSTER_SWITCH_UI,
+                VEHICLE_AREA_TYPE_GLOBAL, Integer.valueOf(mainUi));
     }
 
     @Override
