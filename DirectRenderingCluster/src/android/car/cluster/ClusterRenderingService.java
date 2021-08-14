@@ -89,6 +89,7 @@ public class ClusterRenderingService extends InstrumentClusterRenderingService i
     private final Handler mHandler = new Handler();
     private final Runnable mLaunchMainActivity = this::launchMainActivity;
     private ComponentName mNavigationClusterActivity = null;
+    private int mNavigationClusterUserId = UserHandle.USER_SYSTEM;
     private CarAppFocusManager mAppFocusManager = null;
 
     private final UserReceiver mUserReceiver = new UserReceiver();
@@ -193,18 +194,10 @@ public class ClusterRenderingService extends InstrumentClusterRenderingService i
 
     @Override
     public void onAppFocusChanged(int appType, boolean active) {
-        ComponentName newClusterActivity = getNavigationClusterActivity();
-
-        // If the navigation activity changes and this is the main activity of the cluster,
-        // launch the new activity.
         boolean useNavigationOnly = getResources().getBoolean(R.bool.navigationOnly);
+        Log.i(TAG, "onAppFocusChanged: " + appType + ", active: " + active);
         if (useNavigationOnly) {
-            if (!Objects.equals(newClusterActivity, mNavigationClusterActivity)) {
-                onNavigationComponentChanged(newClusterActivity, active);
-                mNavigationClusterActivity = newClusterActivity;
-                Log.i(TAG, "onAppFocusChanged: set cluster to " + mNavigationClusterActivity);
-                launchMainActivity();
-            }
+            launchMainActivity();
         } else {
             // TODO(b/193931272): Update MainClusterActivity
         }
@@ -218,12 +211,22 @@ public class ClusterRenderingService extends InstrumentClusterRenderingService i
         Intent intent;
         int userId = UserHandle.USER_SYSTEM;
         if (useNavigationOnly) {
-            intent = getNavigationActivityIntent(mNavigationClusterActivity, mClusterDisplayId);
             userId = ActivityManager.getCurrentUser();
             if (UserHelperLite.isHeadlessSystemUser(userId)) {
                 Log.i(TAG, "Skipping the navigation activity for User 0");
                 return;
             }
+            ComponentName newClusterActivity = getNavigationClusterActivity();
+            if (Objects.equals(newClusterActivity, mNavigationClusterActivity)
+                    && userId == mNavigationClusterUserId) {
+                Log.i(TAG, "Cluster activity hasn't changed. Skipping.");
+                return;
+            }
+            Log.i(TAG, "Set cluster to " + newClusterActivity);
+            onNavigationComponentChanged(newClusterActivity);
+            mNavigationClusterActivity = newClusterActivity;
+            mNavigationClusterUserId = userId;
+            intent = getNavigationActivityIntent(mNavigationClusterActivity, mClusterDisplayId);
             startFixedActivityModeForDisplayAndUser(intent, options, userId);
         } else {
             intent = getMainClusterActivityIntent();
@@ -239,13 +242,11 @@ public class ClusterRenderingService extends InstrumentClusterRenderingService i
      * @param clusterActivity current activity displayed in cluster. If no application is holding
      *                        {@link CarAppFocusManager#APP_FOCUS_TYPE_NAVIGATION}, this will be the
      *                        default map cluster activity. Otherwise, this will be the cluster
-     *                        activity of the focused application (if it has one) or null if the
-     *                        application doesn't have a cluster activity or the activity is
+     *                        activity of the focused application (if it has one) or {@code null} if
+     *                        the application doesn't have a cluster activity or the activity is
      *                        disabled.
-     * @param active          true if an application has navigation focus, or false otherwise.
      */
-    protected void onNavigationComponentChanged(@Nullable ComponentName clusterActivity,
-            boolean active) {
+    protected void onNavigationComponentChanged(@Nullable ComponentName clusterActivity) {
         // This method can be used by OEMs to send a signal to the cluster hardware indicating
         // whether Android has or doesn't have a cluster activity.
         //
