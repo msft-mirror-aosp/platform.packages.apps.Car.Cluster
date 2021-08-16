@@ -62,6 +62,7 @@ public final class ClusterHomeApplication extends Application {
     private static final int UI_TYPE_MAPS = UI_TYPE_HOME + 1;
     private static final int UI_TYPE_MUSIC = UI_TYPE_HOME + 2;
     private static final int UI_TYPE_PHONE = UI_TYPE_HOME + 3;
+    private static final int UI_TYPE_START = UI_TYPE_MAPS;
 
     private static final byte HOME_AVAILABILITY = 1;
     private static final byte MAPS_AVAILABILITY = 1;
@@ -153,7 +154,8 @@ public final class ClusterHomeApplication extends Application {
     }
 
     private void startClusterActivity(int uiType) {
-        if (mUserLifeCycleEvent != USER_LIFECYCLE_EVENT_TYPE_UNLOCKED) {
+        // Because ClusterHomeActivity runs as a user 0, so it can run in the locked state.
+        if (uiType != UI_TYPE_HOME && mUserLifeCycleEvent != USER_LIFECYCLE_EVENT_TYPE_UNLOCKED) {
             Log.i(TAG, "Ignore to start Activity(" + uiType + ") during user-switching");
             return;
         }
@@ -258,6 +260,9 @@ public final class ClusterHomeApplication extends Application {
         mUserLifeCycleEvent = event.getEventType();
         if (mUserLifeCycleEvent == USER_LIFECYCLE_EVENT_TYPE_STARTING) {
             startClusterActivity(UI_TYPE_HOME);
+        } else if (UI_TYPE_HOME != UI_TYPE_START
+                && mUserLifeCycleEvent == USER_LIFECYCLE_EVENT_TYPE_UNLOCKED) {
+            startClusterActivity(UI_TYPE_START);
         }
     };
 
