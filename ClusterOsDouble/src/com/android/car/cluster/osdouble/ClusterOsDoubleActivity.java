@@ -145,8 +145,10 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
 
     @Override
     protected void onDestroy() {
-        mVirtualDisplay.release();
-        mVirtualDisplay = null;
+        if (mVirtualDisplay != null) {
+            mVirtualDisplay.release();
+            mVirtualDisplay = null;
+        }
         super.onDestroy();
     }
 
