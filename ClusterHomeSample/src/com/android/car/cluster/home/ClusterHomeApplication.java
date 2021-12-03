@@ -253,6 +253,10 @@ public final class ClusterHomeApplication extends Application {
     }
 
     private final UserLifecycleListener mUserLifecycleListener = (event) -> {
+        if (DBG) Log.d(TAG, "UserLifecycleListener.onEvent: event=" + event);
+        if (event.getUserId() != ActivityManager.getCurrentUser()) {
+            return;
+        }
         mUserLifeCycleEvent = event.getEventType();
         if (mUserLifeCycleEvent == USER_LIFECYCLE_EVENT_TYPE_STARTING) {
             startClusterActivity(UI_TYPE_HOME);
@@ -271,6 +275,7 @@ public final class ClusterHomeApplication extends Application {
     };
 
     private void onKeyEvent(KeyEvent keyEvent) {
+        if (DBG) Log.d(TAG, "onKeyEvent: " + keyEvent);
         if (keyEvent.getKeyCode() == KeyEvent.KEYCODE_MENU) {
             if (keyEvent.getAction() != KeyEvent.ACTION_DOWN) return;
             int nextUiType = (mLastLaunchedUiType + 1) % mUiAvailability.length;
