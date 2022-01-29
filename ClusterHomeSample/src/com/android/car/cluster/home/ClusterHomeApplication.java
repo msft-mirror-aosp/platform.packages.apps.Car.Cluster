@@ -115,6 +115,11 @@ public final class ClusterHomeApplication extends Application {
     }
 
     private void initClusterHome() {
+        if (mHomeManager == null) {
+            Log.e(TAG, "ClusterHome is null (ClusterHomeService may not be enabled), "
+                    + "Stopping ClusterHomeSample.");
+            return;
+        }
         mHomeManager.registerClusterStateListener(getMainExecutor(),mClusterHomeCalback);
         mClusterState = mHomeManager.getClusterState();
         if (!mClusterState.on) {
@@ -216,7 +221,7 @@ public final class ClusterHomeApplication extends Application {
     };
 
     private void handleTaskStackChanged() {
-        if (mClusterState.displayId == Display.INVALID_DISPLAY) {
+        if (mClusterState == null || mClusterState.displayId == Display.INVALID_DISPLAY) {
             return;
         }
         TaskInfo taskInfo;
