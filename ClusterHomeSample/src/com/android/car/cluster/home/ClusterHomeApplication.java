@@ -43,6 +43,7 @@ import android.car.input.CarInputManager;
 import android.car.input.CarInputManager.CarInputCaptureCallback;
 import android.car.user.CarUserManager;
 import android.car.user.CarUserManager.UserLifecycleListener;
+import android.car.user.UserLifecycleEventFilter;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Rect;
@@ -129,7 +130,12 @@ public final class ClusterHomeApplication extends Application {
         mHomeManager.reportState(mClusterState.uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
         mHomeManager.registerClusterStateListener(getMainExecutor(), mClusterHomeCalback);
 
-        mUserManager.addListener(getMainExecutor(), mUserLifecycleListener);
+        // Using the filter, only listens to the current user starting or unlocked events.
+        UserLifecycleEventFilter filter = new UserLifecycleEventFilter.Builder()
+                .addUser(UserHandle.CURRENT)
+                .addEventType(USER_LIFECYCLE_EVENT_TYPE_STARTING)
+                .addEventType(USER_LIFECYCLE_EVENT_TYPE_UNLOCKED).build();
+        mUserManager.addListener(getMainExecutor(), filter, mUserLifecycleListener);
 
         int r = mCarInputManager.requestInputEventCapture(
                 DISPLAY_TYPE_INSTRUMENT_CLUSTER,
@@ -259,9 +265,7 @@ public final class ClusterHomeApplication extends Application {
 
     private final UserLifecycleListener mUserLifecycleListener = (event) -> {
         if (DBG) Log.d(TAG, "UserLifecycleListener.onEvent: event=" + event);
-        if (event.getUserId() != ActivityManager.getCurrentUser()) {
-            return;
-        }
+
         mUserLifeCycleEvent = event.getEventType();
         if (mUserLifeCycleEvent == USER_LIFECYCLE_EVENT_TYPE_STARTING) {
             startClusterActivity(UI_TYPE_HOME);
