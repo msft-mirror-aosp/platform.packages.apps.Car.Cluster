@@ -20,8 +20,6 @@
     android:process="android.car.cluster"
     android:sharedUserId="android.uid.cluster">
 
-    <uses-sdk android:targetSdkVersion="25" android:minSdkVersion="29"/>
-
     <protected-broadcast android:name="android.car.cluster.NAVIGATION_STATE_UPDATE"/>
 
     <!-- We set TYPE_SYSTEM_ALERT window flag to presentation in order
