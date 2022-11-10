@@ -15,6 +15,8 @@
  */
 package android.car.cluster;
 
+import static android.car.VehicleAreaType.VEHICLE_AREA_TYPE_GLOBAL;
+
 import android.annotation.Nullable;
 import android.app.Application;
 import android.car.Car;
@@ -131,7 +133,7 @@ public class ClusterViewModel extends AndroidViewModel {
                     }
                     for (Sensor<?> sensorId : Sensors.getInstance()
                             .getSensorsForPropertyId(value.getPropertyId())) {
-                        if (sensorId.mAreaId == Sensors.GLOBAL_AREA_ID
+                        if (sensorId.mAreaId == VEHICLE_AREA_TYPE_GLOBAL
                                 || (sensorId.mAreaId & value.getAreaId()) != 0) {
                             setSensorValue(sensorId, value);
                         }
