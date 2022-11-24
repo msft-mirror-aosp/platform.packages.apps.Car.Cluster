@@ -348,7 +348,9 @@ public final class ClusterHomeApplication extends Application {
             if (keyEvent.getAction() != KeyEvent.ACTION_DOWN) return;
             int nextUiType;
             do {
-                nextUiType = (mLastLaunchedUiType + 1) % mUiAvailability.length;
+                // Select the Cluster Activity within the preinstalled ones.
+                nextUiType = mLastLaunchedUiType + 1;
+                if (nextUiType >= mDefaultClusterActivitySize) nextUiType = 0;
             } while (mUiAvailability[nextUiType] == UI_UNAVAILABLE);
             startClusterActivity(nextUiType);
             return;
