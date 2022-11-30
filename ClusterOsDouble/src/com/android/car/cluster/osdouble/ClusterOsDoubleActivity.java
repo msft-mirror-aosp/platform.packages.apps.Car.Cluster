@@ -177,9 +177,8 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
                 DisplayInfo displayInfo = new DisplayInfo();
                 DisplayMetrics boundsMetrics = new DisplayMetrics();
                 boolean isDisplayValid = sVirtualDisplay.getDisplay().getDisplayInfo(displayInfo);
-                displayInfo.getMaxBoundsMetrics(boundsMetrics,
-                        CompatibilityInfo.DEFAULT_COMPATIBILITY_INFO,
-                        getResources().getConfiguration());
+                displayInfo.getLogicalMetrics(boundsMetrics,
+                        CompatibilityInfo.DEFAULT_COMPATIBILITY_INFO, /* configuration= */ null);
                 if (isDisplayValid && boundsMetrics.widthPixels == width
                         && boundsMetrics.heightPixels == height) {
                     sVirtualDisplay.setSurface(holder.getSurface());
