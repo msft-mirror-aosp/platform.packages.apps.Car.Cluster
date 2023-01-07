@@ -23,6 +23,7 @@ import android.car.Car;
 import android.car.CarAppFocusManager;
 import android.car.CarNotConnectedException;
 import android.car.VehicleAreaType;
+import android.car.VehiclePropertyIds;
 import android.car.cluster.sensors.Sensor;
 import android.car.cluster.sensors.Sensors;
 import android.car.hardware.CarPropertyValue;
@@ -219,19 +220,23 @@ public class ClusterViewModel extends AndroidViewModel {
      * Returns the current value of the sensor, directly from the VHAL.
      *
      * @param sensor sensor to read
-     * @param <V>    VHAL data type
      * @param <T>    data type of such sensor
      */
     @Nullable
     public <T> T getSensorValue(@NonNull Sensor<T> sensor) {
-        try {
-            CarPropertyValue<?> value = mCarPropertyManager
-                    .getProperty(sensor.mPropertyId, sensor.mAreaId);
-            return sensor.mAdapter.apply(value);
-        } catch (CarNotConnectedException ex) {
-            Log.e(TAG, "We got disconnected from Car Service", ex);
+        if (mCarPropertyManager == null) {
+            Log.e(TAG, "CarPropertyManager reference is null, car service is disconnected.");
             return null;
         }
+        CarPropertyValue<?> carPropertyValue = mCarPropertyManager.getProperty(sensor.mPropertyId,
+                sensor.mAreaId);
+        if (carPropertyValue == null) {
+            Log.w(TAG, "Property ID: " + VehiclePropertyIds.toString(sensor.mPropertyId)
+                    + " Area ID: 0x" + Integer.toHexString(sensor.mAreaId)
+                    + " returned null from CarPropertyManager#getProperty()");
+            return null;
+        }
+        return sensor.mAdapter.apply(carPropertyValue);
     }
 
     /**
