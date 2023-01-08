@@ -75,9 +75,6 @@ public class Sensors {
             "Gear", VehiclePropertyIds.GEAR_SELECTION, VEHICLE_AREA_TYPE_GLOBAL,
             VehiclePropertyType.INT32,
             value -> {
-                if (value == null) {
-                    return null;
-                }
                 Integer gear = (Integer) value.getValue();
                 if ((gear & CarSensorEvent.GEAR_REVERSE) != 0) {
                     return Gear.REVERSE;
