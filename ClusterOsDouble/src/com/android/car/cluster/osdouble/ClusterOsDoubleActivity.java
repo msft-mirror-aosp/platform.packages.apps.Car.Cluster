@@ -326,7 +326,8 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             int nextUi = mCurrentUi;
             do {
-                nextUi = (nextUi + 1) % mUiAvailability.size();
+                nextUi = nextUi + 1;
+                if (nextUi >= mUiToButton.size()) nextUi = 0;
             } while (mUiAvailability.get(nextUi) == 0);
             switchUi(nextUi);
             return true;
