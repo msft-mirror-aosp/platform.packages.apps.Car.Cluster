@@ -263,6 +263,10 @@ public final class ClusterHomeApplication extends Application {
         @Override
         public void onClusterStateChanged(
                 ClusterState state, @ClusterHomeManager.Config int changes) {
+            if (DBG) {
+                Log.d(TAG, "onClusterStateChanged: changes=" + Integer.toHexString(changes) +
+                        ", state=" + clusterStateToString(state));
+            }
             mClusterState = state;
             // We'll restart Activity when the display bounds or insets are changed, to let Activity
             // redraw itself to fit the changed attributes.
@@ -399,4 +403,21 @@ public final class ClusterHomeApplication extends Application {
         return UI_TYPE_CLUSTER_NONE;
     }
 
+    private static String clusterStateToString(ClusterState state) {
+        StringBuilder sb = new StringBuilder("ClusterState[");
+        sb.append("on="); sb.append(state.on);
+        if (state.bounds != null) {
+            sb.append(", bounds="); sb.append(state.bounds);
+        }
+        if (state.insets != null) {
+            sb.append(", insets="); sb.append(state.insets);
+        }
+        if (state.insets != null) {
+            sb.append(", insets="); sb.append(state.insets);
+        }
+        sb.append(", uiType="); sb.append(state.uiType);
+        sb.append(", displayId="); sb.append(state.displayId);
+        sb.append(']');
+        return sb.toString();
+    }
 }
