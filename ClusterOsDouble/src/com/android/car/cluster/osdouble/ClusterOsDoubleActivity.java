@@ -29,14 +29,17 @@ import android.car.cluster.navigation.NavigationState.NavigationStateProto;
 import android.car.hardware.CarPropertyValue;
 import android.car.hardware.property.CarPropertyManager;
 import android.car.hardware.property.CarPropertyManager.CarPropertyEventCallback;
+import android.content.res.CompatibilityInfo;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.os.Bundle;
 import android.util.ArrayMap;
+import android.util.DisplayMetrics;
 import android.util.IntArray;
 import android.util.Log;
+import android.view.DisplayInfo;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
@@ -171,7 +174,20 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
             if (sVirtualDisplay == null) {
                 sVirtualDisplay = createVirtualDisplay(holder.getSurface(), width, height);
             } else {
-                sVirtualDisplay.setSurface(holder.getSurface());
+                DisplayInfo displayInfo = new DisplayInfo();
+                DisplayMetrics boundsMetrics = new DisplayMetrics();
+                boolean isDisplayValid = sVirtualDisplay.getDisplay().getDisplayInfo(displayInfo);
+                displayInfo.getLogicalMetrics(boundsMetrics,
+                        CompatibilityInfo.DEFAULT_COMPATIBILITY_INFO, /* configuration= */ null);
+                if (isDisplayValid && boundsMetrics.widthPixels == width
+                        && boundsMetrics.heightPixels == height) {
+                    sVirtualDisplay.setSurface(holder.getSurface());
+                } else {
+                    // Display was resized, delete existing and create new display.
+                    // TODO(b/254931119): Resize the display instead of replacing it.
+                    sVirtualDisplay.release();
+                    sVirtualDisplay = createVirtualDisplay(holder.getSurface(), width, height);
+                }
             }
         }
 
