@@ -189,6 +189,14 @@ public final class ClusterHomeApplication extends Application {
             Log.w(TAG, "Cluster display is not ready");
             return;
         }
+
+        // If this is the first activity to start, and the user is already unlocked,
+        // use UI_TYPE_START activity instead of UI_TYPE_HOME activity.
+        if (mLastLaunchedUiType == UI_TYPE_CLUSTER_NONE && uiType == UI_TYPE_HOME
+                && mUserLifeCycleEvent == USER_LIFECYCLE_EVENT_TYPE_UNLOCKED) {
+            Log.i(TAG, "Starting START UI instead of HOME UI, since user is already unlocked.");
+            uiType = UI_TYPE_START;
+        }
         mLastLaunchedUiType = uiType;
         ComponentName activity = mClusterActivities.get(uiType);
 
