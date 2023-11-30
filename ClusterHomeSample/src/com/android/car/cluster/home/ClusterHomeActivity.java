@@ -17,22 +17,20 @@
 package com.android.car.cluster.home;
 
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.IActivityManager;
 import android.car.Car;
 import android.car.cluster.ClusterActivityState;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.RemoteException;
 import android.util.Log;
 import android.view.View;
-import android.view.WindowManager;
 
 /**
  * Skeleton Activity for Home UI in Cluster display.
  */
-public class ClusterHomeActivity extends Activity {
+public class ClusterHomeActivity extends Activity implements ClusterHomeActivityInterface {
+
     private static final String TAG = ClusterHomeActivity.class.getSimpleName();
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,7 +38,18 @@ public class ClusterHomeActivity extends Activity {
         View view = getLayoutInflater().inflate(R.layout.cluster_home_activity, /* root= */ null);
         setContentView(view);
         logIntent(getIntent());
-   }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This activity is used for FULL mode only, thus always return {@code false}.
+     *    Use {@link ClusterHomeActivityLightMode} for the LIGHT mode.
+     */
+    @Override
+    public boolean isClusterInLightMode() {
+        return false;
+    }
 
     @Override
     protected void onNewIntent(Intent intent) {
