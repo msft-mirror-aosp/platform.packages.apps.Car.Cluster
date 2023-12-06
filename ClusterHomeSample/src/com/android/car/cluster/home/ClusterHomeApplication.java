@@ -58,6 +58,7 @@ import android.hardware.input.InputManager;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.util.ArraySet;
 import android.util.Log;
 import android.view.Display;
@@ -79,10 +80,11 @@ public final class ClusterHomeApplication extends Application {
     private static final byte UI_AVAILABLE = 1;
 
     private PackageManager mPackageManager;
+    private UserManager mUserManager;
     private IActivityTaskManager mAtm;
     private InputManager mInputManager;
     private ClusterHomeManager mHomeManager;
-    private CarUserManager mUserManager;
+    private CarUserManager mCarUserManager;
     private CarInputManager mCarInputManager;
     private CarAppFocusManager mAppFocusManager;
     private ClusterState mClusterState;
@@ -160,6 +162,7 @@ public final class ClusterHomeApplication extends Application {
                 ComponentName.unflattenFromString(getString(R.string.config_clusterPhoneActivity)));
         mDefaultClusterActivitySize = mClusterActivities.size();
         mPackageManager = getApplicationContext().getPackageManager();
+        mUserManager = getApplicationContext().getSystemService(UserManager.class);
         mAtm = ActivityTaskManager.getService();
         try {
             mAtm.registerTaskStackListener(mTaskStackListener);
@@ -173,7 +176,7 @@ public final class ClusterHomeApplication extends Application {
                 (car, ready) -> {
                     if (!ready) return;
                     mHomeManager = (ClusterHomeManager) car.getCarManager(Car.CLUSTER_HOME_SERVICE);
-                    mUserManager = (CarUserManager) car.getCarManager(Car.CAR_USER_SERVICE);
+                    mCarUserManager = (CarUserManager) car.getCarManager(Car.CAR_USER_SERVICE);
                     mCarInputManager = (CarInputManager) car.getCarManager(Car.CAR_INPUT_SERVICE);
                     mAppFocusManager = (CarAppFocusManager) car.getCarManager(
                             Car.APP_FOCUS_SERVICE);
@@ -195,6 +198,7 @@ public final class ClusterHomeApplication extends Application {
         if (mIsLightMode) {
             return;
         }
+
         mHomeManager.registerClusterStateListener(getMainExecutor(), mClusterHomeCallback);
         mClusterState = mHomeManager.getClusterState();
         if (!mClusterState.on) {
@@ -202,14 +206,16 @@ public final class ClusterHomeApplication extends Application {
         }
         mUiAvailability = buildUiAvailability(ActivityManager.getCurrentUser());
         mHomeManager.reportState(mClusterState.uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
-        mHomeManager.registerClusterStateListener(getMainExecutor(), mClusterHomeCallback);
 
         // Using the filter, only listens to the current user starting or unlocked events.
         UserLifecycleEventFilter filter = new UserLifecycleEventFilter.Builder()
                 .addUser(UserHandle.CURRENT)
                 .addEventType(USER_LIFECYCLE_EVENT_TYPE_STARTING)
                 .addEventType(USER_LIFECYCLE_EVENT_TYPE_UNLOCKED).build();
-        mUserManager.addListener(getMainExecutor(), filter, mUserLifecycleListener);
+        mCarUserManager.addListener(getMainExecutor(), filter, mUserLifecycleListener);
+        if (mUserManager.isUserUnlocked(UserHandle.of(ActivityManager.getCurrentUser()))) {
+            mUserLifeCycleEvent = USER_LIFECYCLE_EVENT_TYPE_UNLOCKED;
+        }
 
         mAppFocusManager.addFocusListener(mAppFocusChangedListener,
                 CarAppFocusManager.APP_FOCUS_TYPE_NAVIGATION);
@@ -232,7 +238,7 @@ public final class ClusterHomeApplication extends Application {
     public void onTerminate() {
         if (!mIsLightMode) {
             mCarInputManager.releaseInputEventCapture(DISPLAY_TYPE_INSTRUMENT_CLUSTER);
-            mUserManager.removeListener(mUserLifecycleListener);
+            mCarUserManager.removeListener(mUserLifecycleListener);
             mHomeManager.unregisterClusterStateListener(mClusterHomeCallback);
             try {
                 mAtm.unregisterTaskStackListener(mTaskStackListener);
