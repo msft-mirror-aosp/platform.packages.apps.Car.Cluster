@@ -212,12 +212,12 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
     }
 
     private void initClusterOsDouble() {
-        mPropertyManager.subscribePropertyEvents(VENDOR_CLUSTER_REPORT_STATE,
-                mPropertyEventCallback);
-        mPropertyManager.subscribePropertyEvents(VENDOR_CLUSTER_NAVIGATION_STATE,
-                mPropertyEventCallback);
-        mPropertyManager.subscribePropertyEvents(VENDOR_CLUSTER_REQUEST_DISPLAY,
-                mPropertyEventCallback);
+        mPropertyManager.registerCallback(mPropertyEventCallback,
+                VENDOR_CLUSTER_REPORT_STATE, CarPropertyManager.SENSOR_RATE_ONCHANGE);
+        mPropertyManager.registerCallback(mPropertyEventCallback,
+                VENDOR_CLUSTER_NAVIGATION_STATE, CarPropertyManager.SENSOR_RATE_ONCHANGE);
+        mPropertyManager.registerCallback(mPropertyEventCallback,
+                VENDOR_CLUSTER_REQUEST_DISPLAY, CarPropertyManager.SENSOR_RATE_ONCHANGE);
     }
 
     private final CarPropertyEventCallback mPropertyEventCallback = new CarPropertyEventCallback() {
