@@ -52,7 +52,7 @@ import java.util.Objects;
 public class ClusterViewModel extends AndroidViewModel {
     private static final String TAG = "Cluster.ViewModel";
 
-    private static final float PROPERTIES_REFRESH_RATE_UI = 5f;
+    private static final int PROPERTIES_REFRESH_RATE_UI = 5;
 
     private float mSpeedFactor;
     private float mDistanceFactor;
@@ -114,8 +114,8 @@ public class ClusterViewModel extends AndroidViewModel {
         mCarPropertyManager = (CarPropertyManager) mCar.getCarManager(Car.PROPERTY_SERVICE);
         for (Integer propertyId : sensors.getPropertyIds()) {
             try {
-                mCarPropertyManager.subscribePropertyEvents(propertyId,
-                        PROPERTIES_REFRESH_RATE_UI, mCarPropertyEventCallback);
+                mCarPropertyManager.registerCallback(mCarPropertyEventCallback,
+                        propertyId, PROPERTIES_REFRESH_RATE_UI);
             } catch (SecurityException ex) {
                 Log.e(TAG, "onServiceConnected: Unable to listen to car property: " + propertyId
                         + " sensors: " + sensors.getSensorsForPropertyId(propertyId), ex);
