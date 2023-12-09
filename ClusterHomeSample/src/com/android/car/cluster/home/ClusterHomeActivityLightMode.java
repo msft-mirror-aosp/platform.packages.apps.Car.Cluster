@@ -16,11 +16,19 @@
 
 package com.android.car.cluster.home;
 
-import android.content.Intent;
+import android.car.Car;
+import android.car.cluster.ClusterHomeManager;
+import android.os.Bundle;
+import android.util.Log;
 
 public class ClusterHomeActivityLightMode extends ClusterHomeActivity {
 
     private static final String TAG = ClusterHomeActivityLightMode.class.getSimpleName();
+    private static final long HEARTBEAT_INTERVAL_MS = 1000; // 1 second interval.
+
+    private ClusterHomeManager mClusterHomeManager;
+
+    private final Runnable mSendHeartbeatsRunnable = () -> sendHeartbeats();
 
     /**
      * Returns true if the activity is designed to run in the LIGHT mode.
@@ -31,5 +39,38 @@ public class ClusterHomeActivityLightMode extends ClusterHomeActivity {
     @Override
     public boolean isClusterInLightMode() {
         return true;
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        Car car = Car.createCar(getApplicationContext());
+        mClusterHomeManager = (ClusterHomeManager) car.getCarManager(ClusterHomeManager.class);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        mClusterHomeManager.startVisibilityMonitoring(this);
+        Log.i(TAG, "Visibility monitoring started");
+
+        // Clean up the handler queue.
+        getMainThreadHandler().removeCallbacks(mSendHeartbeatsRunnable);
+        // Start sending the heartbeats.
+        sendHeartbeats();
+    }
+
+    @Override
+    public void onStop() {
+        getMainThreadHandler().removeCallbacks(mSendHeartbeatsRunnable);
+        super.onStop();
+    }
+
+    private void sendHeartbeats() {
+        mClusterHomeManager.sendHeartbeat(System.nanoTime(), /* appMetadata= */ null);
+
+        getMainThreadHandler().postDelayed(mSendHeartbeatsRunnable, HEARTBEAT_INTERVAL_MS);
     }
 }
