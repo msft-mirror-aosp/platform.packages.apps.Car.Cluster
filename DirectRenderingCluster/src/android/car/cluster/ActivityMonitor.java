@@ -77,6 +77,10 @@ public class ActivityMonitor {
         public void onForegroundServicesChanged(int pid, int uid, int serviceTypes) { }
 
         @Override
+        public void onProcessStarted(int pid, int processUid, int packageUid, String packageName,
+                String processName) { }
+
+        @Override
         public void onProcessDied(int pid, int uid) {
             notifyTopActivities();
         }
