@@ -15,6 +15,7 @@ android_app {
     required: ["allowed_privapp_com.android.car.cluster.home"],
 
     platform_apis: true,
+    system_ext_specific: true,
     certificate: "platform",
     privileged: true,
 }
