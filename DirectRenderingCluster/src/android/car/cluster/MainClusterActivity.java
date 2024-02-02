@@ -200,6 +200,32 @@ public class MainClusterActivity extends FragmentActivity implements
         }
     }
 
+    private final BroadcastReceiver mScreenOffReceiver = new BroadcastReceiver(){
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            if (!intent.getAction().equals(Intent.ACTION_SCREEN_OFF)){
+                return;
+            }
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "ACTION_SCREEN_OFF");
+            }
+            mNavStateController.hideNavigationStateInfo();
+        }
+    };
+
+    private final BroadcastReceiver mUserPresentReceiver = new BroadcastReceiver(){
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            if (!intent.getAction().equals(Intent.ACTION_USER_PRESENT)) {
+                return;
+            }
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "ACTION_USER_PRESENT");
+            }
+            mNavStateController.showNavigationStateInfo();
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -230,22 +256,13 @@ public class MainClusterActivity extends FragmentActivity implements
         mOrderToFacet.get(NAV_FACET_ID).mButton.requestFocus();
         mNavStateController = new NavStateController(findViewById(R.id.navigation_state));
 
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(ACTION_USER_PRESENT);
-        filter.addAction(ACTION_SCREEN_OFF);
-        registerReceiver(new BroadcastReceiver(){
-            @Override
-            public void onReceive(final Context context, final Intent intent) {
-                if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)){
-                    Log.d(TAG, "ACTION_SCREEN_OFF");
-                    mNavStateController.hideNavigationStateInfo();
-                }
-                else if (intent.getAction().equals(Intent.ACTION_USER_PRESENT)) {
-                    Log.d(TAG, "ACTION_USER_PRESENT");
-                    mNavStateController.showNavigationStateInfo();
-                }
-            }
-        }, filter);
+        IntentFilter screenOffFilter = new IntentFilter();
+        screenOffFilter.addAction(ACTION_SCREEN_OFF);
+        registerReceiver(mScreenOffReceiver, screenOffFilter);
+
+        IntentFilter userPresentFilter = new IntentFilter();
+        userPresentFilter.addAction(ACTION_USER_PRESENT);
+        registerReceiver(mUserPresentReceiver, userPresentFilter);
 
         mClusterViewModel = new ViewModelProvider(this).get(ClusterViewModel.class);
         mClusterViewModel.getNavigationFocus().observe(this, focus -> {
@@ -326,6 +343,8 @@ public class MainClusterActivity extends FragmentActivity implements
             mService = null;
         }
         unbindService(mClusterRenderingServiceConnection);
+        unregisterReceiver(mScreenOffReceiver);
+        unregisterReceiver(mUserPresentReceiver);
     }
 
     @Override
