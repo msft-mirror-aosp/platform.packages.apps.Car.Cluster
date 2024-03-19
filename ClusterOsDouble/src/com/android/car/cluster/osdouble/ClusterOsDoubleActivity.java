@@ -212,12 +212,16 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
     }
 
     private void initClusterOsDouble() {
-        mPropertyManager.registerCallback(mPropertyEventCallback,
-                VENDOR_CLUSTER_REPORT_STATE, CarPropertyManager.SENSOR_RATE_ONCHANGE);
-        mPropertyManager.registerCallback(mPropertyEventCallback,
-                VENDOR_CLUSTER_NAVIGATION_STATE, CarPropertyManager.SENSOR_RATE_ONCHANGE);
-        mPropertyManager.registerCallback(mPropertyEventCallback,
-                VENDOR_CLUSTER_REQUEST_DISPLAY, CarPropertyManager.SENSOR_RATE_ONCHANGE);
+        try {
+            mPropertyManager.subscribePropertyEvents(VENDOR_CLUSTER_REPORT_STATE,
+                    mPropertyEventCallback);
+            mPropertyManager.subscribePropertyEvents(VENDOR_CLUSTER_NAVIGATION_STATE,
+                    mPropertyEventCallback);
+            mPropertyManager.subscribePropertyEvents(VENDOR_CLUSTER_REQUEST_DISPLAY,
+                    mPropertyEventCallback);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to subscribe to cluster properties", e);
+        }
     }
 
     private final CarPropertyEventCallback mPropertyEventCallback = new CarPropertyEventCallback() {
