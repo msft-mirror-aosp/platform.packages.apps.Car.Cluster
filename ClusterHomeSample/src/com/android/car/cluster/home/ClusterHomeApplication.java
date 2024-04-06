@@ -56,6 +56,7 @@ import android.graphics.Rect;
 import android.hardware.input.InputManager;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.util.ArraySet;
 import android.util.Log;
 import android.view.Display;
@@ -77,10 +78,11 @@ public final class ClusterHomeApplication extends Application {
     private static final byte UI_AVAILABLE = 1;
 
     private PackageManager mPackageManager;
+    private UserManager mUserManager;
     private IActivityTaskManager mAtm;
     private InputManager mInputManager;
     private ClusterHomeManager mHomeManager;
-    private CarUserManager mUserManager;
+    private CarUserManager mCarUserManager;
     private CarInputManager mCarInputManager;
     private CarAppFocusManager mAppFocusManager;
     private ClusterState mClusterState;
@@ -106,6 +108,7 @@ public final class ClusterHomeApplication extends Application {
                 ComponentName.unflattenFromString(getString(R.string.config_clusterPhoneActivity)));
         mDefaultClusterActivitySize = mClusterActivities.size();
         mPackageManager = getApplicationContext().getPackageManager();
+        mUserManager = getApplicationContext().getSystemService(UserManager.class);
         mAtm = ActivityTaskManager.getService();
         try {
             mAtm.registerTaskStackListener(mTaskStackListener);
@@ -119,7 +122,7 @@ public final class ClusterHomeApplication extends Application {
                 (car, ready) -> {
                     if (!ready) return;
                     mHomeManager = (ClusterHomeManager) car.getCarManager(Car.CLUSTER_HOME_SERVICE);
-                    mUserManager = (CarUserManager) car.getCarManager(Car.CAR_USER_SERVICE);
+                    mCarUserManager = (CarUserManager) car.getCarManager(Car.CAR_USER_SERVICE);
                     mCarInputManager = (CarInputManager) car.getCarManager(Car.CAR_INPUT_SERVICE);
                     mAppFocusManager = (CarAppFocusManager) car.getCarManager(
                             Car.APP_FOCUS_SERVICE);
@@ -133,21 +136,23 @@ public final class ClusterHomeApplication extends Application {
                     + "Stopping ClusterHomeSample.");
             return;
         }
-        mHomeManager.registerClusterStateListener(getMainExecutor(),mClusterHomeCalback);
+        mHomeManager.registerClusterStateListener(getMainExecutor(), mClusterHomeCalback);
         mClusterState = mHomeManager.getClusterState();
         if (!mClusterState.on) {
             mHomeManager.requestDisplay(UI_TYPE_HOME);
         }
         mUiAvailability = buildUiAvailability(ActivityManager.getCurrentUser());
         mHomeManager.reportState(mClusterState.uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
-        mHomeManager.registerClusterStateListener(getMainExecutor(), mClusterHomeCalback);
 
         // Using the filter, only listens to the current user starting or unlocked events.
         UserLifecycleEventFilter filter = new UserLifecycleEventFilter.Builder()
                 .addUser(UserHandle.CURRENT)
                 .addEventType(USER_LIFECYCLE_EVENT_TYPE_STARTING)
                 .addEventType(USER_LIFECYCLE_EVENT_TYPE_UNLOCKED).build();
-        mUserManager.addListener(getMainExecutor(), filter, mUserLifecycleListener);
+        mCarUserManager.addListener(getMainExecutor(), filter, mUserLifecycleListener);
+        if (mUserManager.isUserUnlocked(UserHandle.of(ActivityManager.getCurrentUser()))) {
+            mUserLifeCycleEvent = USER_LIFECYCLE_EVENT_TYPE_UNLOCKED;
+        }
 
         mAppFocusManager.addFocusListener(mAppFocusChangedListener,
                 CarAppFocusManager.APP_FOCUS_TYPE_NAVIGATION);
@@ -169,7 +174,7 @@ public final class ClusterHomeApplication extends Application {
     @Override
     public void onTerminate() {
         mCarInputManager.releaseInputEventCapture(DISPLAY_TYPE_INSTRUMENT_CLUSTER);
-        mUserManager.removeListener(mUserLifecycleListener);
+        mCarUserManager.removeListener(mUserLifecycleListener);
         mHomeManager.unregisterClusterStateListener(mClusterHomeCalback);
         try {
             mAtm.unregisterTaskStackListener(mTaskStackListener);
@@ -188,6 +193,14 @@ public final class ClusterHomeApplication extends Application {
         if (mClusterState == null || mClusterState.displayId == Display.INVALID_DISPLAY) {
             Log.w(TAG, "Cluster display is not ready");
             return;
+        }
+
+        // If this is the first activity to start, and the user is already unlocked,
+        // use UI_TYPE_START activity instead of UI_TYPE_HOME activity.
+        if (mLastLaunchedUiType == UI_TYPE_CLUSTER_NONE && uiType == UI_TYPE_HOME
+                && mUserLifeCycleEvent == USER_LIFECYCLE_EVENT_TYPE_UNLOCKED) {
+            Log.i(TAG, "Starting START UI instead of HOME UI, since user is already unlocked.");
+            uiType = UI_TYPE_START;
         }
         mLastLaunchedUiType = uiType;
         ComponentName activity = mClusterActivities.get(uiType);
