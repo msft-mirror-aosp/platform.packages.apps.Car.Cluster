@@ -27,6 +27,7 @@ import static android.car.user.CarUserManager.USER_LIFECYCLE_EVENT_TYPE_UNLOCKED
 import static android.content.Intent.ACTION_MAIN;
 import static android.hardware.input.InputManager.INJECT_INPUT_EVENT_MODE_ASYNC;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.ActivityTaskManager;
@@ -54,8 +55,10 @@ import android.content.pm.PackageManager.ResolveInfoFlags;
 import android.content.pm.ResolveInfo;
 import android.graphics.Rect;
 import android.hardware.input.InputManager;
+import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.os.UserManager;
 import android.util.ArraySet;
 import android.util.Log;
 import android.view.Display;
@@ -77,10 +80,11 @@ public final class ClusterHomeApplication extends Application {
     private static final byte UI_AVAILABLE = 1;
 
     private PackageManager mPackageManager;
+    private UserManager mUserManager;
     private IActivityTaskManager mAtm;
     private InputManager mInputManager;
     private ClusterHomeManager mHomeManager;
-    private CarUserManager mUserManager;
+    private CarUserManager mCarUserManager;
     private CarInputManager mCarInputManager;
     private CarAppFocusManager mAppFocusManager;
     private ClusterState mClusterState;
@@ -92,6 +96,58 @@ public final class ClusterHomeApplication extends Application {
 
     private int mLastLaunchedUiType = UI_TYPE_CLUSTER_NONE;
     private int mLastReportedUiType = UI_TYPE_CLUSTER_NONE;
+
+    private boolean mIsLightMode = false;
+    private boolean mIsInitialized = false;
+
+    // Note that we use this callback to detect which cluster service mode (either FULL or LIGHT),
+    // by looking at what cluster activity is being created. This is a hack to support both service
+    // modes with a single sample application. In actual production scenarios, only one service
+    // will be supported on a given device, thus there is no need for this callback mechanism.
+    private final ActivityLifecycleCallbacks mActivityLifecycleCallbacks =
+            new ActivityLifecycleCallbacks() {
+                @Override
+                public void onActivityPreCreated(Activity activity, Bundle savedInstanceState) {
+                    // Set the mode based on the home activity class that is being created.
+                    if (activity instanceof ClusterHomeActivityInterface) {
+                        mIsLightMode =
+                                ((ClusterHomeActivityInterface) activity).isClusterInLightMode();
+                    }
+                    // Initialize before the first activity is created.
+                    if (!mIsInitialized) {
+                        mIsInitialized = true;
+                        initClusterHome();
+                    }
+                }
+
+                @Override
+                public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+                }
+
+                @Override
+                public void onActivityStarted(Activity activity) {
+                }
+
+                @Override
+                public void onActivityResumed(Activity activity) {
+                }
+
+                @Override
+                public void onActivityPaused(Activity activity) {
+                }
+
+                @Override
+                public void onActivityStopped(Activity activity) {
+                }
+
+                @Override
+                public void onActivitySaveInstanceState(Activity activity, Bundle outState) {
+                }
+
+                @Override
+                public void onActivityDestroyed(Activity activity) {
+                }
+            };
 
     @Override
     public void onCreate() {
@@ -106,6 +162,7 @@ public final class ClusterHomeApplication extends Application {
                 ComponentName.unflattenFromString(getString(R.string.config_clusterPhoneActivity)));
         mDefaultClusterActivitySize = mClusterActivities.size();
         mPackageManager = getApplicationContext().getPackageManager();
+        mUserManager = getApplicationContext().getSystemService(UserManager.class);
         mAtm = ActivityTaskManager.getService();
         try {
             mAtm.registerTaskStackListener(mTaskStackListener);
@@ -119,35 +176,46 @@ public final class ClusterHomeApplication extends Application {
                 (car, ready) -> {
                     if (!ready) return;
                     mHomeManager = (ClusterHomeManager) car.getCarManager(Car.CLUSTER_HOME_SERVICE);
-                    mUserManager = (CarUserManager) car.getCarManager(Car.CAR_USER_SERVICE);
+                    mCarUserManager = (CarUserManager) car.getCarManager(Car.CAR_USER_SERVICE);
                     mCarInputManager = (CarInputManager) car.getCarManager(Car.CAR_INPUT_SERVICE);
                     mAppFocusManager = (CarAppFocusManager) car.getCarManager(
                             Car.APP_FOCUS_SERVICE);
-                    initClusterHome();
                 });
+
+        registerActivityLifecycleCallbacks(mActivityLifecycleCallbacks);
     }
 
     private void initClusterHome() {
+        Log.i(TAG, "initClusterHome() in " + (mIsLightMode ? "LIGHT" : "FULL") + " mode");
         if (mHomeManager == null) {
             Log.e(TAG, "ClusterHome is null (ClusterHomeService may not be enabled), "
                     + "Stopping ClusterHomeSample.");
             return;
         }
-        mHomeManager.registerClusterStateListener(getMainExecutor(),mClusterHomeCalback);
+        // In the LIGHT mode, the HOME activity (DriverUI) takes care of everything, so we just
+        // stay as the UI_TYPE_HOME, and do not need any logic to switch activities to different
+        // types.
+        if (mIsLightMode) {
+            return;
+        }
+
+        mHomeManager.registerClusterStateListener(getMainExecutor(), mClusterHomeCallback);
         mClusterState = mHomeManager.getClusterState();
         if (!mClusterState.on) {
             mHomeManager.requestDisplay(UI_TYPE_HOME);
         }
         mUiAvailability = buildUiAvailability(ActivityManager.getCurrentUser());
         mHomeManager.reportState(mClusterState.uiType, UI_TYPE_CLUSTER_NONE, mUiAvailability);
-        mHomeManager.registerClusterStateListener(getMainExecutor(), mClusterHomeCalback);
 
         // Using the filter, only listens to the current user starting or unlocked events.
         UserLifecycleEventFilter filter = new UserLifecycleEventFilter.Builder()
                 .addUser(UserHandle.CURRENT)
                 .addEventType(USER_LIFECYCLE_EVENT_TYPE_STARTING)
                 .addEventType(USER_LIFECYCLE_EVENT_TYPE_UNLOCKED).build();
-        mUserManager.addListener(getMainExecutor(), filter, mUserLifecycleListener);
+        mCarUserManager.addListener(getMainExecutor(), filter, mUserLifecycleListener);
+        if (mUserManager.isUserUnlocked(UserHandle.of(ActivityManager.getCurrentUser()))) {
+            mUserLifeCycleEvent = USER_LIFECYCLE_EVENT_TYPE_UNLOCKED;
+        }
 
         mAppFocusManager.addFocusListener(mAppFocusChangedListener,
                 CarAppFocusManager.APP_FOCUS_TYPE_NAVIGATION);
@@ -168,14 +236,17 @@ public final class ClusterHomeApplication extends Application {
 
     @Override
     public void onTerminate() {
-        mCarInputManager.releaseInputEventCapture(DISPLAY_TYPE_INSTRUMENT_CLUSTER);
-        mUserManager.removeListener(mUserLifecycleListener);
-        mHomeManager.unregisterClusterStateListener(mClusterHomeCalback);
-        try {
-            mAtm.unregisterTaskStackListener(mTaskStackListener);
-        } catch (RemoteException e) {
-            Log.e(TAG, "remote exception from AM", e);
+        if (!mIsLightMode) {
+            mCarInputManager.releaseInputEventCapture(DISPLAY_TYPE_INSTRUMENT_CLUSTER);
+            mCarUserManager.removeListener(mUserLifecycleListener);
+            mHomeManager.unregisterClusterStateListener(mClusterHomeCallback);
+            try {
+                mAtm.unregisterTaskStackListener(mTaskStackListener);
+            } catch (RemoteException e) {
+                Log.e(TAG, "remote exception from AM", e);
+            }
         }
+        unregisterActivityLifecycleCallbacks(mActivityLifecycleCallbacks);
         super.onTerminate();
     }
 
@@ -188,6 +259,14 @@ public final class ClusterHomeApplication extends Application {
         if (mClusterState == null || mClusterState.displayId == Display.INVALID_DISPLAY) {
             Log.w(TAG, "Cluster display is not ready");
             return;
+        }
+
+        // If this is the first activity to start, and the user is already unlocked,
+        // use UI_TYPE_START activity instead of UI_TYPE_HOME activity.
+        if (mLastLaunchedUiType == UI_TYPE_CLUSTER_NONE && uiType == UI_TYPE_HOME
+                && mUserLifeCycleEvent == USER_LIFECYCLE_EVENT_TYPE_UNLOCKED) {
+            Log.i(TAG, "Starting START UI instead of HOME UI, since user is already unlocked.");
+            uiType = UI_TYPE_START;
         }
         mLastLaunchedUiType = uiType;
         ComponentName activity = mClusterActivities.get(uiType);
@@ -259,10 +338,14 @@ public final class ClusterHomeApplication extends Application {
         return availability;
     }
 
-    private final ClusterStateListener mClusterHomeCalback = new ClusterStateListener() {
+    private final ClusterStateListener mClusterHomeCallback = new ClusterStateListener() {
         @Override
         public void onClusterStateChanged(
                 ClusterState state, @ClusterHomeManager.Config int changes) {
+            if (DBG) {
+                Log.d(TAG, "onClusterStateChanged: changes=" + Integer.toHexString(changes) +
+                        ", state=" + clusterStateToString(state));
+            }
             mClusterState = state;
             // We'll restart Activity when the display bounds or insets are changed, to let Activity
             // redraw itself to fit the changed attributes.
@@ -348,7 +431,9 @@ public final class ClusterHomeApplication extends Application {
             if (keyEvent.getAction() != KeyEvent.ACTION_DOWN) return;
             int nextUiType;
             do {
-                nextUiType = (mLastLaunchedUiType + 1) % mUiAvailability.length;
+                // Select the Cluster Activity within the preinstalled ones.
+                nextUiType = mLastLaunchedUiType + 1;
+                if (nextUiType >= mDefaultClusterActivitySize) nextUiType = 0;
             } while (mUiAvailability[nextUiType] == UI_UNAVAILABLE);
             startClusterActivity(nextUiType);
             return;
@@ -397,4 +482,21 @@ public final class ClusterHomeApplication extends Application {
         return UI_TYPE_CLUSTER_NONE;
     }
 
+    private static String clusterStateToString(ClusterState state) {
+        StringBuilder sb = new StringBuilder("ClusterState[");
+        sb.append("on="); sb.append(state.on);
+        if (state.bounds != null) {
+            sb.append(", bounds="); sb.append(state.bounds);
+        }
+        if (state.insets != null) {
+            sb.append(", insets="); sb.append(state.insets);
+        }
+        if (state.insets != null) {
+            sb.append(", insets="); sb.append(state.insets);
+        }
+        sb.append(", uiType="); sb.append(state.uiType);
+        sb.append(", displayId="); sb.append(state.displayId);
+        sb.append(']');
+        return sb.toString();
+    }
 }
