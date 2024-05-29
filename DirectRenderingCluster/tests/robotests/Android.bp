@@ -20,4 +20,5 @@ android_robolectric_test {
 
     instrumentation_for: "DirectRenderingCluster",
     upstream: true,
+    strict_mode: false,
 }
