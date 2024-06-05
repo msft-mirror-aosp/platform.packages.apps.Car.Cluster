@@ -41,6 +41,7 @@ import androidx.lifecycle.Transformations;
 import com.android.car.cluster.osdouble.R;
 import com.android.car.cluster.sensors.Sensor;
 import com.android.car.cluster.sensors.Sensors;
+import com.android.internal.annotations.GuardedBy;
 
 import java.text.DecimalFormat;
 import java.util.Map;
@@ -52,10 +53,13 @@ import java.util.Objects;
 public class ClusterViewModel extends AndroidViewModel {
     private static final String TAG = "Cluster.ViewModel";
 
-    private static final int PROPERTIES_REFRESH_RATE_UI = 5;
+    private static final float PROPERTIES_REFRESH_RATE_UI = 5f;
 
     private float mSpeedFactor;
     private float mDistanceFactor;
+    // mFuelCapacity is initialized once in registerCarPropertiesListener(), so doesn't need the
+    // lock.
+    private Float mFuelCapacity;
 
     public enum NavigationActivityState {
         /** No activity has been selected to be displayed on the navigation fragment yet */
@@ -106,10 +110,11 @@ public class ClusterViewModel extends AndroidViewModel {
     private void registerCarPropertiesListener() throws CarNotConnectedException {
         Sensors sensors = Sensors.getInstance();
         mCarPropertyManager = (CarPropertyManager) mCar.getCarManager(Car.PROPERTY_SERVICE);
+        mFuelCapacity = getSensorValue(Sensors.SENSOR_FUEL_CAPACITY);
         for (int propertyId : sensors.getPropertyIds()) {
             try {
-                mCarPropertyManager.registerCallback(mCarPropertyEventCallback,
-                        propertyId, PROPERTIES_REFRESH_RATE_UI);
+                mCarPropertyManager.subscribePropertyEvents(propertyId,
+                        PROPERTIES_REFRESH_RATE_UI, mCarPropertyEventCallback);
             } catch (SecurityException ex) {
                 Log.e(TAG, "onServiceConnected: Unable to listen to car property: " + propertyId
                         + " sensors: " + sensors.getSensorForPropertyId(propertyId), ex);
@@ -230,17 +235,16 @@ public class ClusterViewModel extends AndroidViewModel {
      */
     public LiveData<Integer> getFuelLevel() {
         return Transformations.map(getSensor(Sensors.SENSOR_FUEL), (fuelValue) -> {
-            Float fuelCapacityValue = getSensorValue(Sensors.SENSOR_FUEL_CAPACITY);
-            if (fuelValue == null || fuelCapacityValue == null || fuelCapacityValue == 0) {
+            if (fuelValue == null || mFuelCapacity == null || mFuelCapacity == 0) {
                 return null;
             }
             if (fuelValue < 0.0f) {
                 return 0;
             }
-            if (fuelValue > fuelCapacityValue) {
+            if (fuelValue > mFuelCapacity) {
                 return 100;
             }
-            return Math.round(fuelValue / fuelCapacityValue * 100f);
+            return Math.round(fuelValue / mFuelCapacity * 100f);
         });
     }
 

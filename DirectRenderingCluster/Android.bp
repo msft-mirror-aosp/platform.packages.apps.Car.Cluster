@@ -48,10 +48,4 @@ android_app {
     libs: ["android.car"],
 
     required: ["allowed_privapp_android.car.cluster"],
-
-    product_variables: {
-        pdk: {
-            enabled: false,
-        },
-    },
 }
