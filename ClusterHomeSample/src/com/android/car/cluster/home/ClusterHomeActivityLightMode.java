@@ -27,6 +27,7 @@ public class ClusterHomeActivityLightMode extends ClusterHomeActivity {
     private static final long HEARTBEAT_INTERVAL_MS = 1000; // 1 second interval.
 
     private ClusterHomeManager mClusterHomeManager;
+    private String mText;
 
     private final Runnable mSendHeartbeatsRunnable = () -> sendHeartbeats();
 
@@ -44,6 +45,8 @@ public class ClusterHomeActivityLightMode extends ClusterHomeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mText = getResources().getString(R.string.cluster_home_text) + " (LIGHT mode)";
+        mTextView.setText(mText);
 
         Car car = Car.createCar(getApplicationContext());
         mClusterHomeManager = (ClusterHomeManager) car.getCarManager(ClusterHomeManager.class);
@@ -69,7 +72,9 @@ public class ClusterHomeActivityLightMode extends ClusterHomeActivity {
     }
 
     private void sendHeartbeats() {
-        mClusterHomeManager.sendHeartbeat(System.nanoTime(), /* appMetadata= */ null);
+        long nanoTime = System.nanoTime();
+        mTextView.setText(mText + "\nsendHeartbeat: " + nanoTime);
+        mClusterHomeManager.sendHeartbeat(nanoTime, /* appMetadata= */ null);
 
         getMainThreadHandler().postDelayed(mSendHeartbeatsRunnable, HEARTBEAT_INTERVAL_MS);
     }
