@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 
 /**
  * Skeleton Activity for Home UI in Cluster display.
@@ -30,6 +31,7 @@ import android.view.View;
 public class ClusterHomeActivity extends Activity implements ClusterHomeActivityInterface {
 
     private static final String TAG = ClusterHomeActivity.class.getSimpleName();
+    protected TextView mTextView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -37,6 +39,7 @@ public class ClusterHomeActivity extends Activity implements ClusterHomeActivity
 
         View view = getLayoutInflater().inflate(R.layout.cluster_home_activity, /* root= */ null);
         setContentView(view);
+        mTextView = (TextView) view;
         logIntent(getIntent());
     }
 
