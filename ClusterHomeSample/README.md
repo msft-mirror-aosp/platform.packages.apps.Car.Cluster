@@ -67,30 +67,6 @@ attribute must be set to `true` in the `AndroidManifest.xml` file.
 ```
 See https://developer.android.com/guide/topics/manifest/activity-element#showForAllUsers
 for more information on `showForAllUsers`.
-### `showWhenLocked`
-If your cluster activity needs to be shown even when the screen is locked,
-set `showWhenLocked` to `true` in the `AndroidManifest.xml` file.
-```
-<activity android:name=".ClusterHomeActivity"
-    ...
-    android:showWhenLocked="true">
-```
-See https://developer.android.com/reference/android/R.attr#showWhenLocked
-for more information on `showWhenLocked`.
-### `turnScreenOn`
-The `turnScreenOn` is set to specify whether the screen needs to be
-turned on when the activity is resumed. Usually `turnScreenOn` is specified
-with `showWhenLocked` to turn on the screen and show the activity
-when the lockscreen is up.
-```
-<activity android:name=".ClusterHomeActivity"
-    ...
-    android:turnScreenOn="true">
-```
-See https://developer.android.com/reference/android/R.attr#turnScreenOn
-for more information on `turnScreenOn`.
-
-``
 ## FULL mode
 
 The cluster application makes full use of the `ClusterHomeManager` APIs in the FULL mode.
