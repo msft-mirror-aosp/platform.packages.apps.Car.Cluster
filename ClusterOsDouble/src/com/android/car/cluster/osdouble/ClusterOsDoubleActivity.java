@@ -20,6 +20,8 @@ import static android.car.VehicleAreaType.VEHICLE_AREA_TYPE_GLOBAL;
 import static android.car.cluster.ClusterHomeManager.UI_TYPE_CLUSTER_HOME;
 import static android.car.cluster.ClusterHomeManager.UI_TYPE_CLUSTER_NONE;
 import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY;
+import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_STEAL_TOP_FOCUS_DISABLED;
+import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_TRUSTED;
 
 import static com.android.car.cluster.osdouble.ClusterOsDoubleApplication.TAG;
 
@@ -205,9 +207,12 @@ public class ClusterOsDoubleActivity extends ComponentActivity {
                 + "x" + height);
         return mDisplayManager.createVirtualDisplay(/* projection= */ null, "ClusterOsDouble-VD",
                 width, height, 160, surface,
-                // Don't use VIRTUAL_DISPLAY_FLAG_TRUSTED, because we don't want the cluster display
-                // to be the focus display which can hinder Rotary service (b/206862329).
-                VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY,
+                // Use VIRTUAL_DISPLAY_FLAG_STEAL_TOP_FOCUS_DISABLED, because we don't want the
+                // cluster display to be the focus display which can hinder Rotary service
+                // (b/206862329). VIRTUAL_DISPLAY_FLAG_TRUSTED is needed so that we get display
+                // area callbacks.
+                VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY | VIRTUAL_DISPLAY_FLAG_TRUSTED
+                        | VIRTUAL_DISPLAY_FLAG_STEAL_TOP_FOCUS_DISABLED,
                 /* callback= */ null, /* handler= */ null, "ClusterDisplay");
     }
 
