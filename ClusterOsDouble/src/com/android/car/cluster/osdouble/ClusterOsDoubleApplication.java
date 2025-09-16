@@ -148,12 +148,12 @@ public class ClusterOsDoubleApplication extends Application {
         private int findDisplayByPort(int displayPort) {
             for (Display display : mDisplayManager.getDisplays()) {
                 DisplayAddress address = display.getAddress();
-                if (!(address instanceof DisplayAddress.Physical)) {
-                    continue;
-                }
-                DisplayAddress.Physical physical = (DisplayAddress.Physical) address;
-                if (physical.getPort() == displayPort) {
+
+                if (address != null && address.getPort() != DisplayAddress.INVALID_DISPLAY_ID
+                        && address.getPort() == displayPort) {
                     return display.getDisplayId();
+                } else {
+                    continue;
                 }
             }
             return Display.INVALID_DISPLAY;
