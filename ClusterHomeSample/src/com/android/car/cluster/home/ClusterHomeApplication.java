@@ -114,10 +114,7 @@ public final class ClusterHomeApplication extends Application {
                                 ((ClusterHomeActivityInterface) activity).isClusterInLightMode();
                     }
                     // Initialize before the first activity is created.
-                    if (!mIsInitialized) {
-                        mIsInitialized = true;
-                        initClusterHome();
-                    }
+                    initClusterHome();
                 }
 
                 @Override
@@ -126,6 +123,8 @@ public final class ClusterHomeApplication extends Application {
 
                 @Override
                 public void onActivityStarted(Activity activity) {
+                    Log.i(TAG, "onActivityStarted. Initialize ClusterHome if needed.");
+                    initClusterHome();
                 }
 
                 @Override
@@ -138,6 +137,8 @@ public final class ClusterHomeApplication extends Application {
 
                 @Override
                 public void onActivityStopped(Activity activity) {
+                    Log.i(TAG, "onActivityStopped. Reset mIsInitialized.");
+                    mIsInitialized = false;
                 }
 
                 @Override
@@ -146,6 +147,8 @@ public final class ClusterHomeApplication extends Application {
 
                 @Override
                 public void onActivityDestroyed(Activity activity) {
+                    Log.i(TAG, "onActivityDestroyed. Reset mIsInitialized.");
+                    mIsInitialized = false;
                 }
             };
 
@@ -192,10 +195,17 @@ public final class ClusterHomeApplication extends Application {
                     + "Stopping ClusterHomeSample.");
             return;
         }
+
+        if (mIsInitialized) {
+            Log.i(TAG, "ClusterHome was already initialized.");
+            return;
+        }
+
         // In the LIGHT mode, the HOME activity (DriverUI) takes care of everything, so we just
         // stay as the UI_TYPE_HOME, and do not need any logic to switch activities to different
         // types.
         if (mIsLightMode) {
+            mIsInitialized = true;
             return;
         }
 
@@ -232,6 +242,7 @@ public final class ClusterHomeApplication extends Application {
         if (mClusterState.uiType != UI_TYPE_HOME) {
             startClusterActivity(mClusterState.uiType);
         }
+        mIsInitialized = true;
     }
 
     @Override
