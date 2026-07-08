@@ -115,6 +115,8 @@ public class ClusterViewModel extends AndroidViewModel {
             try {
                 mCarPropertyManager.subscribePropertyEvents(propertyId,
                         PROPERTIES_REFRESH_RATE_UI, mCarPropertyEventCallback);
+            } catch (IllegalArgumentException ex) {
+                Log.e(TAG, "onServiceConnected: Undefined car property: " + propertyId, ex);
             } catch (SecurityException ex) {
                 Log.e(TAG, "onServiceConnected: Unable to listen to car property: " + propertyId
                         + " sensors: " + sensors.getSensorForPropertyId(propertyId), ex);
@@ -224,10 +226,12 @@ public class ClusterViewModel extends AndroidViewModel {
             CarPropertyValue<?> value = mCarPropertyManager
                     .getProperty(sensor.mPropertyId, sensor.mAreaId);
             return sensor.mAdapter.apply(value);
+        } catch (IllegalArgumentException ex) {
+            Log.e(TAG, "Undefined car property: " + sensor.mPropertyId, ex);
         } catch (CarNotConnectedException ex) {
             Log.e(TAG, "We got disconnected from Car Service", ex);
-            return null;
         }
+        return null;
     }
 
     /**
