@@ -116,6 +116,9 @@ public class ClusterViewModel extends AndroidViewModel {
             try {
                 mCarPropertyManager.subscribePropertyEvents(propertyId,
                         PROPERTIES_REFRESH_RATE_UI, mCarPropertyEventCallback);
+            } catch (IllegalArgumentException ex) {
+                Log.e(TAG, "onServiceConnected: Undefined car property: " + propertyId
+                        + " sensors: " + sensors.getSensorsForPropertyId(propertyId), ex);
             } catch (SecurityException ex) {
                 Log.e(TAG, "onServiceConnected: Unable to listen to car property: " + propertyId
                         + " sensors: " + sensors.getSensorsForPropertyId(propertyId), ex);
@@ -228,8 +231,15 @@ public class ClusterViewModel extends AndroidViewModel {
             Log.e(TAG, "CarPropertyManager reference is null, car service is disconnected.");
             return null;
         }
-        CarPropertyValue<?> carPropertyValue = mCarPropertyManager.getProperty(sensor.mPropertyId,
-                sensor.mAreaId);
+        CarPropertyValue<?> carPropertyValue = null;
+        try {
+            carPropertyValue = mCarPropertyManager.getProperty(
+                    sensor.mPropertyId, sensor.mAreaId);
+        } catch (IllegalArgumentException ex) {
+            Log.e(TAG, "Undefined car property ID: " + sensor.mPropertyId, ex);
+        } catch (SecurityException ex) {
+            Log.e(TAG, "Permission denied for car property ID: " + sensor.mPropertyId, ex);
+        }
         if (carPropertyValue == null) {
             Log.w(TAG, "Property ID: " + VehiclePropertyIds.toString(sensor.mPropertyId)
                     + " Area ID: 0x" + Integer.toHexString(sensor.mAreaId)
